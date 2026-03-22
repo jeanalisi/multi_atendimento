@@ -72,10 +72,10 @@ function CreateSectorDialog({ onCreated }: { onCreated: () => void }) {
             </div>
             <div className="col-span-2">
               <Label>Setor Pai (opcional)</Label>
-              <Select value={parentId?.toString() ?? ""} onValueChange={(v) => setParentId(v ? Number(v) : undefined)}>
+              <Select value={parentId?.toString() ?? "none"} onValueChange={(v) => setParentId(v && v !== "none" ? Number(v) : undefined)}>
                 <SelectTrigger className="mt-1"><SelectValue placeholder="Nenhum (setor raiz)" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nenhum (setor raiz)</SelectItem>
+                  <SelectItem value="none">Nenhum (setor raiz)</SelectItem>
                   {sectors?.map((s) => <SelectItem key={s.id} value={s.id.toString()}>{s.name}</SelectItem>)}
                 </SelectContent>
               </Select>

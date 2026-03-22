@@ -423,3 +423,10 @@
 - [x] Botão "Novo Atendimento" no Inbox com modal completo
 - [x] TypeScript: 0 erros de compilação
 - [x] 73 testes passando
+
+## Fase 23: Correções Urgentes [CONCLUÍDO]
+
+- [x] Modal Novo Atendimento: corrigir query de contas conectadas — campo `channel` (não `type`) e `status` (não `isActive`), com auto-select quando há apenas uma conta
+- [x] Tela de login: redirecionamento automático investigado — o sistema não tem redirect automático; o fluxo OAuth redireciona para `/` após login (comportamento correto)
+- [x] Gestão Pública: corrigir erro `Select.Item value=""` — todos os filtros e modais corrigidos (Protocolos, Processos, Documentos, Ouvidoria, Modelos, ServicoDetalhe, Sectors, ProtocolDetail)
+- [x] 73 testes passando, TypeScript 0 erros

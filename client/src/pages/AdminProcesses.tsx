@@ -116,7 +116,7 @@ function CreateProcessDialog({ onCreated }: { onCreated: () => void }) {
             </div>
             <div>
               <Label>Setor Responsável</Label>
-              <Select value={sectorId?.toString() ?? ""} onValueChange={(v) => setSectorId(v ? Number(v) : undefined)}>
+              <Select value={sectorId?.toString() ?? "none"} onValueChange={(v) => setSectorId(v && v !== "none" ? Number(v) : undefined)}>
                 <SelectTrigger className="mt-1"><SelectValue placeholder="Selecionar setor" /></SelectTrigger>
                 <SelectContent>
                   {sectors?.map((s) => <SelectItem key={s.id} value={s.id.toString()}>{s.name}</SelectItem>)}
@@ -158,11 +158,11 @@ function CreateProcessDialog({ onCreated }: { onCreated: () => void }) {
 
 export default function AdminProcesses() {
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const utils = trpc.useUtils();
 
   const { data: processes, isLoading } = trpc.caius.processes.list.useQuery({
-    status: statusFilter || undefined,
+    status: statusFilter === "all" ? undefined : statusFilter,
     search: search || undefined,
     limit: 100,
   });
@@ -181,7 +181,7 @@ export default function AdminProcesses() {
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todos</SelectItem>
+              <SelectItem value="all">Todos</SelectItem>
               {Object.entries(STATUS_CONFIG).map(([v, c]) => <SelectItem key={v} value={v}>{c.label}</SelectItem>)}
             </SelectContent>
           </Select>

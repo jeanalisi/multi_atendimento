@@ -127,7 +127,7 @@ function CreateDocumentDialog({ onCreated }: { onCreated: () => void }) {
             </div>
             <div>
               <Label>Setor</Label>
-              <Select value={sectorId?.toString() ?? ""} onValueChange={(v) => setSectorId(v ? Number(v) : undefined)}>
+              <Select value={sectorId?.toString() ?? "none"} onValueChange={(v) => setSectorId(v && v !== "none" ? Number(v) : undefined)}>
                 <SelectTrigger className="mt-1"><SelectValue placeholder="Selecionar setor" /></SelectTrigger>
                 <SelectContent>
                   {sectors?.map((s) => (
@@ -220,13 +220,13 @@ function SignDocumentButton({ documentId, nup }: { documentId: number; nup?: str
 
 export default function Documents() {
   const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const utils = trpc.useUtils();
 
   const { data: documents, isLoading } = trpc.caius.documents.list.useQuery({
-    type: typeFilter || undefined,
-    status: statusFilter || undefined,
+    type: typeFilter === "all" ? undefined : typeFilter,
+    status: statusFilter === "all" ? undefined : statusFilter,
     search: search || undefined,
     limit: 100,
   });
@@ -251,7 +251,7 @@ export default function Documents() {
               <SelectValue placeholder="Tipo" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todos os tipos</SelectItem>
+              <SelectItem value="all">Todos os tipos</SelectItem>
               {Object.entries(DOC_TYPE_LABELS).map(([v, l]) => (
                 <SelectItem key={v} value={v}>{l}</SelectItem>
               ))}
@@ -262,7 +262,7 @@ export default function Documents() {
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todos os status</SelectItem>
+              <SelectItem value="all">Todos os status</SelectItem>
               {Object.entries(STATUS_CONFIG).map(([v, c]) => (
                 <SelectItem key={v} value={v}>{c.label}</SelectItem>
               ))}

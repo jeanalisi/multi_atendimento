@@ -89,10 +89,13 @@ export function NewConversationModal({ open, onClose, onSuccess }: NewConversati
   const { data: accounts } = trpc.accounts.list.useQuery(undefined, { enabled: open });
 
   // Filtra contas pelo canal detectado
+  // O schema usa 'channel' (não 'type') e 'status' (não 'isActive')
+  // Aceita contas connected ou connecting (WhatsApp pode estar em processo de conexão)
   const filteredAccounts = (accounts ?? []).filter((a: any) => {
-    if (detectedChannel === "email") return a.type === "email" && a.isActive;
-    if (detectedChannel === "whatsapp") return a.type === "whatsapp" && a.isActive;
-    if (detectedChannel === "instagram") return a.type === "instagram" && a.isActive;
+    const isUsable = a.status === "connected" || a.status === "connecting";
+    if (detectedChannel === "email") return a.channel === "email" && isUsable;
+    if (detectedChannel === "whatsapp") return a.channel === "whatsapp" && isUsable;
+    if (detectedChannel === "instagram") return a.channel === "instagram" && isUsable;
     return false;
   });
 
@@ -101,6 +104,15 @@ export function NewConversationModal({ open, onClose, onSuccess }: NewConversati
     { search: email.trim() || phone.trim() || igHandle.trim() },
     { enabled: false }
   );
+
+  // Auto-seleciona conta quando há apenas uma disponível para o canal
+  useEffect(() => {
+    if (filteredAccounts.length === 1 && !accountId) {
+      setAccountId(String(filteredAccounts[0].id));
+    } else if (filteredAccounts.length === 0) {
+      setAccountId("");
+    }
+  }, [filteredAccounts.length, detectedChannel]);
 
   useEffect(() => {
     if (!hasIdentifier) {

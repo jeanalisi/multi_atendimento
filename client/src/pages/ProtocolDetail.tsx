@@ -111,7 +111,7 @@ function TramitationDialog({ protocolId, nup, onDone }: { protocolId: number; nu
           {(action === "forward" || action === "assign") && (
             <div>
               <Label>Setor Destino</Label>
-              <Select value={toSectorId?.toString() ?? ""} onValueChange={(v) => setToSectorId(v ? Number(v) : undefined)}>
+              <Select value={toSectorId?.toString() ?? "none"} onValueChange={(v) => setToSectorId(v && v !== "none" ? Number(v) : undefined)}>
                 <SelectTrigger className="mt-1"><SelectValue placeholder="Selecionar setor" /></SelectTrigger>
                 <SelectContent>
                   {sectors?.map((s) => (

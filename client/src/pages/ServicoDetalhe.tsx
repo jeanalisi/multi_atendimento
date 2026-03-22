@@ -41,7 +41,7 @@ function DynamicField({ field, value, onChange }: { field: any; value: any; onCh
     input = <Textarea value={value ?? ""} onChange={e => onChange(e.target.value)} placeholder={placeholder ?? ""} rows={3} className="bg-white border-gray-200" />;
   } else if (fieldType === "select" || fieldType === "radio") {
     input = (
-      <Select value={value ?? ""} onValueChange={onChange}>
+      <Select value={value || "__none__"} onValueChange={v => onChange(v === "__none__" ? "" : v)}>
         <SelectTrigger className="bg-white border-gray-200"><SelectValue placeholder={placeholder ?? "Selecione..."} /></SelectTrigger>
         <SelectContent>
           {(field.options ?? []).map((opt: string) => (
@@ -402,7 +402,8 @@ export default function ServicoDetalhe() {
               {(service as any).subjects?.length > 0 && (
                 <div className="space-y-1.5">
                   <Label className="text-sm font-medium text-gray-700">Assunto</Label>
-                  <Select value={selectedSubjectId?.toString() ?? ""} onValueChange={v => {
+                  <Select value={selectedSubjectId?.toString() ?? "none"} onValueChange={v => {
+                    if (v === "none") return;
                     const s = (service as any).subjects.find((s: any) => s.id === Number(v));
                     setSelectedSubjectId(Number(v));
                     if (s) setSubject(s.name);

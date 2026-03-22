@@ -165,7 +165,7 @@ function CreateProtocolDialog({ onCreated }: { onCreated: () => void }) {
             </div>
             <div>
               <Label>Setor Responsável</Label>
-              <Select value={sectorId?.toString() ?? ""} onValueChange={(v) => setSectorId(v ? Number(v) : undefined)}>
+              <Select value={sectorId?.toString() ?? "none"} onValueChange={(v) => setSectorId(v && v !== "none" ? Number(v) : undefined)}>
                 <SelectTrigger className="mt-1"><SelectValue placeholder="Selecionar setor" /></SelectTrigger>
                 <SelectContent>
                   {sectors?.map((s) => (
@@ -225,15 +225,15 @@ function CreateProtocolDialog({ onCreated }: { onCreated: () => void }) {
 
 export default function Protocols() {
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("");
-  const [typeFilter, setTypeFilter] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const utils = trpc.useUtils();
 
   const { data: protocols, isLoading } = trpc.caius.protocols.list.useQuery({
     search: search || undefined,
-    status: statusFilter || undefined,
-    type: typeFilter || undefined,
+    status: statusFilter === "all" ? undefined : statusFilter,
+    type: typeFilter === "all" ? undefined : typeFilter,
     limit: 100,
   });
 
@@ -284,7 +284,7 @@ export default function Protocols() {
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todos os status</SelectItem>
+              <SelectItem value="all">Todos os status</SelectItem>
               {Object.entries(STATUS_CONFIG).map(([v, c]) => (
                 <SelectItem key={v} value={v}>{c.label}</SelectItem>
               ))}
@@ -295,7 +295,7 @@ export default function Protocols() {
               <SelectValue placeholder="Tipo" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todos os tipos</SelectItem>
+              <SelectItem value="all">Todos os tipos</SelectItem>
               {Object.entries(TYPE_LABELS).map(([v, l]) => (
                 <SelectItem key={v} value={v}>{l}</SelectItem>
               ))}

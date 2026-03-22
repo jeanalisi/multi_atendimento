@@ -160,13 +160,13 @@ function CreateManifestationDialog({ onCreated }: { onCreated: () => void }) {
 
 export default function Ombudsman() {
   const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const utils = trpc.useUtils();
 
   const { data: manifestations, isLoading } = trpc.caius.ombudsman.list.useQuery({
-    type: typeFilter || undefined,
-    status: statusFilter || undefined,
+    type: typeFilter === "all" ? undefined : typeFilter,
+    status: statusFilter === "all" ? undefined : statusFilter,
     search: search || undefined,
     limit: 100,
   });
@@ -213,7 +213,7 @@ export default function Ombudsman() {
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todos os status</SelectItem>
+              <SelectItem value="all">Todos os status</SelectItem>
               {Object.entries(STATUS_CONFIG).map(([v, c]) => <SelectItem key={v} value={v}>{c.label}</SelectItem>)}
             </SelectContent>
           </Select>

@@ -181,12 +181,12 @@ function CreateTemplateDialog({ onCreated }: { onCreated: () => void }) {
 
 export default function Templates() {
   const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
   const [previewTemplate, setPreviewTemplate] = useState<any>(null);
   const utils = trpc.useUtils();
 
   const { data: templates, isLoading } = trpc.caius.templates.list.useQuery({
-    type: typeFilter || undefined,
+    type: typeFilter === "all" ? undefined : typeFilter,
   });
 
   const deleteTemplate = trpc.caius.templates.delete.useMutation({
@@ -214,7 +214,7 @@ export default function Templates() {
               <SelectValue placeholder="Tipo" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todos os tipos</SelectItem>
+              <SelectItem value="all">Todos os tipos</SelectItem>
               {Object.entries(DOC_TYPE_LABELS).map(([v, l]) => (
                 <SelectItem key={v} value={v}>{l}</SelectItem>
               ))}
