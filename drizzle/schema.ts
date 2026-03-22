@@ -1027,3 +1027,129 @@ export const documentVerificationLogs = mysqlTable("documentVerificationLogs", {
 });
 export type DocumentVerificationLog = typeof documentVerificationLogs.$inferSelect;
 export type InsertDocumentVerificationLog = typeof documentVerificationLogs.$inferInsert;
+
+// ─── Channel Sync State (Estado de sincronização por conta/canal) ─────────────
+export const channelSyncState = mysqlTable("channelSyncState", {
+  id: int("id").autoincrement().primaryKey(),
+  accountId: int("accountId").notNull(),
+  channel: mysqlEnum("channel", ["whatsapp", "instagram", "email"]).notNull(),
+  lastCursor: varchar("lastCursor", { length: 512 }),
+  lastMessageAt: timestamp("lastMessageAt"),
+  lastSyncAt: timestamp("lastSyncAt"),
+  status: mysqlEnum("status", ["idle", "syncing", "error", "disconnected"]).default("idle").notNull(),
+  errorMessage: text("errorMessage"),
+  syncCount: int("syncCount").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  accountChannelIdx: index("css_account_channel_idx").on(table.accountId, table.channel),
+}));
+export type ChannelSyncState = typeof channelSyncState.$inferSelect;
+export type InsertChannelSyncState = typeof channelSyncState.$inferInsert;
+
+// ─── Delivery Attempts (Tentativas de entrega de notificações) ────────────────
+export const deliveryAttempts = mysqlTable("deliveryAttempts", {
+  id: int("id").autoincrement().primaryKey(),
+  conversationId: int("conversationId"),
+  protocolId: int("protocolId"),
+  nup: varchar("nup", { length: 64 }),
+  channel: mysqlEnum("channel", ["whatsapp", "instagram", "email"]).notNull(),
+  accountId: int("accountId").notNull(),
+  recipient: varchar("recipient", { length: 512 }).notNull(),
+  eventType: varchar("eventType", { length: 128 }).notNull(),
+  payload: text("payload"),
+  status: mysqlEnum("status", ["pending", "sent", "failed", "retrying", "cancelled"]).default("pending").notNull(),
+  attemptNumber: int("attemptNumber").default(1).notNull(),
+  errorMessage: text("errorMessage"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  sentAt: timestamp("sentAt"),
+  nextRetryAt: timestamp("nextRetryAt"),
+}, (table) => ({
+  convIdx: index("da_conv_idx").on(table.conversationId),
+  statusIdx: index("da_status_idx").on(table.status),
+  eventIdx: index("da_event_idx").on(table.eventType),
+}));
+export type DeliveryAttempt = typeof deliveryAttempts.$inferSelect;
+export type InsertDeliveryAttempt = typeof deliveryAttempts.$inferInsert;
+
+// ─── Message Events (Eventos de mensagem por canal) ───────────────────────────
+export const messageEvents = mysqlTable("messageEvents", {
+  id: int("id").autoincrement().primaryKey(),
+  messageId: int("messageId"),
+  conversationId: int("conversationId"),
+  eventType: varchar("eventType", { length: 128 }).notNull(),
+  channel: mysqlEnum("channel", ["whatsapp", "instagram", "email"]).notNull(),
+  metadata: text("metadata"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({
+  msgIdx: index("me_msg_idx").on(table.messageId),
+  convIdx: index("me_conv_idx").on(table.conversationId),
+  typeIdx: index("me_type_idx").on(table.eventType),
+}));
+export type MessageEvent = typeof messageEvents.$inferSelect;
+export type InsertMessageEvent = typeof messageEvents.$inferInsert;
+
+// ─── Channel Health Logs (Logs de saúde dos conectores) ──────────────────────
+export const channelHealthLogs = mysqlTable("channelHealthLogs", {
+  id: int("id").autoincrement().primaryKey(),
+  accountId: int("accountId").notNull(),
+  channel: mysqlEnum("channel", ["whatsapp", "instagram", "email"]).notNull(),
+  status: mysqlEnum("status", ["healthy", "degraded", "unhealthy", "unknown"]).default("unknown").notNull(),
+  latencyMs: int("latencyMs"),
+  errorMessage: text("errorMessage"),
+  checkedAt: timestamp("checkedAt").defaultNow().notNull(),
+}, (table) => ({
+  accountIdx: index("chl_account_idx").on(table.accountId),
+  checkedIdx: index("chl_checked_idx").on(table.checkedAt),
+}));
+export type ChannelHealthLog = typeof channelHealthLogs.$inferSelect;
+export type InsertChannelHealthLog = typeof channelHealthLogs.$inferInsert;
+
+// ─── Survey Dispatches (Pesquisas de satisfação enviadas) ─────────────────────
+export const surveyDispatches = mysqlTable("surveyDispatches", {
+  id: int("id").autoincrement().primaryKey(),
+  conversationId: int("conversationId").notNull(),
+  protocolId: int("protocolId"),
+  nup: varchar("nup", { length: 64 }),
+  channel: mysqlEnum("channel", ["whatsapp", "instagram", "email"]).notNull(),
+  accountId: int("accountId").notNull(),
+  recipient: varchar("recipient", { length: 512 }).notNull(),
+  status: mysqlEnum("status", ["pending", "sent", "responded", "failed", "expired"]).default("pending").notNull(),
+  surveyToken: varchar("surveyToken", { length: 128 }).unique(),
+  rating: int("rating"),
+  feedback: text("feedback"),
+  sentAt: timestamp("sentAt"),
+  respondedAt: timestamp("respondedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({
+  convIdx: index("sd_conv_idx").on(table.conversationId),
+  statusIdx: index("sd_status_idx").on(table.status),
+}));
+export type SurveyDispatch = typeof surveyDispatches.$inferSelect;
+export type InsertSurveyDispatch = typeof surveyDispatches.$inferInsert;
+
+// ─── Audio Transcriptions (Transcrições de áudio) ────────────────────────────
+export const audioTranscriptions = mysqlTable("audioTranscriptions", {
+  id: int("id").autoincrement().primaryKey(),
+  messageId: int("messageId"),
+  conversationId: int("conversationId"),
+  contactId: int("contactId"),
+  protocolId: int("protocolId"),
+  nup: varchar("nup", { length: 64 }),
+  audioUrl: varchar("audioUrl", { length: 1024 }),
+  provider: varchar("provider", { length: 64 }).default("whisper"),
+  transcriptionText: text("transcriptionText"),
+  language: varchar("language", { length: 16 }),
+  confidence: varchar("confidence", { length: 16 }),
+  status: mysqlEnum("status", ["pending", "processing", "completed", "failed"]).default("pending").notNull(),
+  errorMessage: text("errorMessage"),
+  durationSeconds: int("durationSeconds"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  completedAt: timestamp("completedAt"),
+}, (table) => ({
+  msgIdx: index("at_msg_idx").on(table.messageId),
+  convIdx: index("at_conv_idx").on(table.conversationId),
+  statusIdx: index("at_status_idx").on(table.status),
+}));
+export type AudioTranscription = typeof audioTranscriptions.$inferSelect;
+export type InsertAudioTranscription = typeof audioTranscriptions.$inferInsert;

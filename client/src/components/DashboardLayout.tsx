@@ -33,6 +33,7 @@ import {
   Building2, Settings, ChevronDown, ChevronRight, BarChart3, Tag,
   Link2, Globe, HelpCircle, UserCog, Shield, Layers, Briefcase,
   Scale, BookOpen, Archive, Star, Plus, Wrench, FileText as FileTextIcon,
+  Activity,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -76,6 +77,7 @@ const STATIC_GROUPS: NavGroup[] = [
       { icon: ClipboardList, label: "Fila", path: "/queue" },
       { icon: Link2, label: "Contas", path: "/accounts" },
       { icon: Tag, label: "Etiquetas", path: "/tags" },
+      { icon: Activity, label: "Saúde dos Canais", path: "/channel-health" },
     ],
   },
   {

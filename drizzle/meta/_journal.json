@@ -71,6 +71,13 @@
       "when": 1774159539015,
       "tag": "0009_lethal_saracen",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1774160367230,
+      "tag": "0010_fat_beast",
+      "breakpoints": true
     }
   ]
 }

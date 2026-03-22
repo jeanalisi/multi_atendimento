@@ -537,3 +537,25 @@
 - [x] Exibe: status (autêntico/inválido/cancelado/substituído), tipo, signatários, data, órgão emissor
 - [x] Acesso direto por QR Code (rota pública sem autenticação)
 - [x] 73 testes passando, TypeScript 0 erros
+
+## Fase 30: Arquitetura Omnichannel — ChannelGateway, Workers e Notificação por Canal de Origem
+
+### Banco de Dados
+- [x] Tabela: channelSyncState (estado de sincronização por conta/canal)
+- [x] Tabela: messageEvents (eventos de mensagem por canal)
+- [x] Tabela: channelHealthLogs (logs de saúde dos conectores)
+
+### Backend — Módulos
+- [x] ChannelGateway (server/channel-gateway.ts) — abstração central com interface connect/disconnect/healthCheck/pullMessages/sendMessage/sendAttachment/markAsRead/resolveIdentity
+- [x] WhatsAppConnector — conector com healthCheck via status da conta
+- [x] InstagramConnector — conector OAuth com pullMessages via Graph API e sendMessage
+- [x] EmailConnector — conector IMAP/SMTP com healthCheck e sendMessage
+- [x] Router: omnichannel (server/routers-omnichannel.ts) — health.all, health.history, health.check, health.dashboard, sync.getState, sync.listAll, events.recent, send.message, connectors.list, connectors.reinit, connectors.register, connectors.unregister
+
+### Frontend
+- [x] Página: ChannelHealth (/channel-health) — dashboard de saúde com KPIs, status por canal, tabela de contas, histórico de logs
+- [x] Menu lateral: item "Saúde dos Canais" no grupo Atendimento
+- [x] Modal Novo Atendimento: indicador de status (verde/amarelo) nas contas do select
+
+### Testes
+- [x] 73 testes passando, TypeScript 0 erros

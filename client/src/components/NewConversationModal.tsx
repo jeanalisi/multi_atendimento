@@ -325,7 +325,15 @@ export function NewConversationModal({ open, onClose, onSuccess }: NewConversati
                   <SelectContent>
                     {filteredAccounts.map((a: any) => (
                       <SelectItem key={a.id} value={String(a.id)}>
-                        {a.name}
+                        <span className="flex items-center gap-2">
+                          <span
+                            className={`inline-block h-2 w-2 rounded-full shrink-0 ${
+                              a.status === "connected" ? "bg-green-500" :
+                              a.status === "connecting" ? "bg-yellow-500" : "bg-gray-400"
+                            }`}
+                          />
+                          {a.name}
+                        </span>
                       </SelectItem>
                     ))}
                   </SelectContent>

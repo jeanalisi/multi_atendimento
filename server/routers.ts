@@ -59,6 +59,7 @@ import { caiusRouter } from "./routers-caius";
 import { customModulesRouter } from "./routers-modules";
 import { verificationRouter } from "./routers-verification";
 import { orgUnitsRouter, positionsRouter, userAllocationsRouter, orgInvitesRouter } from "./routers-org";
+import { omnichannelRouter } from "./routers-omnichannel";
 import {
   serviceTypesRouter,
   serviceSubjectsRouter,
@@ -461,6 +462,8 @@ export const appRouter = router({
   positions: positionsRouter,
   userAllocations: userAllocationsRouter,
   orgInvites: orgInvitesRouter,
+  // ── Omnichannel ───────────────────────────────────────────────────────────
+  omnichannel: omnichannelRouter,
   // ── Analytics ─────────────────────────────────────────────────────────────
    analytics: router({
     overview: protectedProcedure

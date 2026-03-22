@@ -40,6 +40,7 @@ import CustomModules from "./pages/CustomModules";
 import CustomModuleRecords from "./pages/CustomModuleRecords";
 import VerifyDocument from "./pages/VerifyDocument";
 import DocumentSignaturesPage from "./pages/DocumentSignatures";
+import ChannelHealth from "./pages/ChannelHealth";
 
 function ProtocolDetailWrapper() {
   const params = useParams<{ id: string }>();
@@ -104,6 +105,7 @@ function Router() {
       <Route path={"/agents"} component={Agents} />
       <Route path={"/audit"} component={Audit} />
       <Route path={"/ai-settings"} component={AiSettings} />
+      <Route path={"/channel-health"} component={ChannelHealth} />
 
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
