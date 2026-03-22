@@ -153,30 +153,109 @@ export default function OmniLayout({ children, title }: OmniLayoutProps) {
 
   if (!isAuthenticated) {
     return (
-      <div className="flex h-screen flex-col items-center justify-center bg-background gap-8">
-        <div className="flex flex-col items-center gap-3">
-          {/* CAIUS Logo */}
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary shadow-lg shadow-primary/25">
-            <Scale className="h-8 w-8 text-primary-foreground" />
-          </div>
-          <div className="text-center">
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">CAIUS</h1>
-            <p className="text-sm text-muted-foreground mt-1">Plataforma Pública Omnichannel</p>
-            <p className="text-xs text-muted-foreground/70">Atendimento e Gestão Administrativa</p>
-          </div>
+      <div className="relative flex h-screen overflow-hidden bg-background">
+        {/* Background decorative gradient */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute -top-40 -left-40 h-[600px] w-[600px] rounded-full bg-primary/5 blur-3xl" />
+          <div className="absolute -bottom-40 -right-40 h-[500px] w-[500px] rounded-full bg-primary/8 blur-3xl" />
         </div>
-        <div className="flex flex-col items-center gap-3">
-          <a href={getLoginUrl()}>
-            <Button size="lg" className="gap-2 px-8">
-              Acessar a plataforma
-            </Button>
-          </a>
-          <Link href="/consulta">
-            <Button variant="outline" size="sm" className="gap-2">
-              <ClipboardList className="h-4 w-4" />
-              Consultar protocolo por NUP
-            </Button>
-          </Link>
+
+        {/* Left panel — branding */}
+        <div className="hidden lg:flex lg:w-1/2 flex-col justify-between p-12 border-r border-border/40">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary shadow-md shadow-primary/30">
+              <Scale className="h-5 w-5 text-primary-foreground" />
+            </div>
+            <span className="text-lg font-bold tracking-tight text-foreground">CAIUS</span>
+          </div>
+          <div className="space-y-6">
+            <div className="space-y-3">
+              <h2 className="text-4xl font-bold tracking-tight text-foreground leading-tight">
+                Atendimento e Gestão<br />
+                <span className="text-primary">em um só lugar</span>
+              </h2>
+              <p className="text-muted-foreground text-base leading-relaxed max-w-sm">
+                Plataforma omnichannel para centralizar WhatsApp, Instagram, e-mail e gestão administrativa com protocolo digital (NUP), tramitação interna e ouvidoria.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { icon: MessageSquare, label: "Inbox Unificado", desc: "WhatsApp, Instagram, E-mail" },
+                { icon: ClipboardList, label: "Protocolo Digital", desc: "NUP automático" },
+                { icon: GitBranch, label: "Estrutura Org.", desc: "Lei 010/2025" },
+                { icon: ShieldCheck, label: "Auditoria", desc: "Trilha completa" },
+              ].map(({ icon: Icon, label, desc }) => (
+                <div key={label} className="flex items-start gap-2.5 rounded-xl border border-border/50 bg-card/50 p-3">
+                  <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                    <Icon className="h-3.5 w-3.5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-foreground">{label}</p>
+                    <p className="text-[11px] text-muted-foreground">{desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground/50">
+            Município de Itabaiana &mdash; Powered by CAIUS
+          </p>
+        </div>
+
+        {/* Right panel — login */}
+        <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">
+          {/* Mobile logo */}
+          <div className="mb-8 flex flex-col items-center gap-3 lg:hidden">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary shadow-lg shadow-primary/25">
+              <Scale className="h-7 w-7 text-primary-foreground" />
+            </div>
+            <div className="text-center">
+              <h1 className="text-2xl font-bold tracking-tight text-foreground">CAIUS</h1>
+              <p className="text-xs text-muted-foreground">Plataforma Pública Omnichannel</p>
+            </div>
+          </div>
+
+          <div className="w-full max-w-sm space-y-6">
+            <div className="space-y-1.5">
+              <h2 className="text-2xl font-bold tracking-tight text-foreground">Bem-vindo</h2>
+              <p className="text-sm text-muted-foreground">Acesse com sua conta Manus para continuar.</p>
+            </div>
+
+            {/* Manus login button */}
+            <a href={getLoginUrl()} className="block">
+              <button className="group relative flex w-full items-center justify-center gap-3 rounded-xl border border-primary/30 bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all duration-200 hover:bg-primary/90 hover:shadow-primary/30 hover:shadow-xl active:scale-[0.98]">
+                {/* Manus icon */}
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                Entrar com Manus
+                <span className="absolute right-4 opacity-0 transition-opacity group-hover:opacity-100">
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                </span>
+              </button>
+            </a>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border/50" />
+              </div>
+              <div className="relative flex justify-center text-xs">
+                <span className="bg-background px-3 text-muted-foreground/60">ou acesso público</span>
+              </div>
+            </div>
+
+            <Link href="/consulta">
+              <button className="flex w-full items-center justify-center gap-2 rounded-xl border border-border/60 bg-card/50 px-6 py-3 text-sm font-medium text-foreground/80 transition-all hover:bg-card hover:text-foreground hover:border-border">
+                <ClipboardList className="h-4 w-4 text-muted-foreground" />
+                Consultar protocolo por NUP
+              </button>
+            </Link>
+
+            <p className="text-center text-[11px] text-muted-foreground/50 leading-relaxed">
+              Ao acessar, você concorda com os termos de uso da plataforma.<br />
+              Acesso restrito a servidores e colaboradores autorizados.
+            </p>
+          </div>
         </div>
       </div>
     );

@@ -164,3 +164,10 @@
 - [x] TypeScript sem erros (0 erros de compilação)
 - [x] Servidor rodando corretamente (HTTP 200)
 - [x] Checkpoint final e entrega
+
+## Fase 13: Melhoria da Tela de Login
+- [x] Botão "Entrar com Manus" com logo e identidade visual explícita
+- [x] Tela de login redesenhada com descrição do sistema e instruções de acesso
+- [x] Layout dividido em dois painéis: branding (esquerda) + formulário de login (direita)
+- [x] Cards de funcionalidades na tela de login (Inbox, Protocolo, Estrutura Org., Auditoria)
+- [x] Acesso público separado com link para Consulta por NUP
