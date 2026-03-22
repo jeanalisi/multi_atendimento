@@ -111,6 +111,9 @@ function Router() {
       <Route path={"/audit"} component={Audit} />
       <Route path={"/ai-settings"} component={AiSettings} />
       <Route path={"/channel-health"} component={ChannelHealth} />
+      {/* Assinaturas Digitais */}
+      <Route path={"/document-signatures"} component={DocumentSignaturesPage} />
+      <Route path={"/assinaturas/:entityType/:entityId"} component={DocumentSignaturesPage} />
       {/* Fase 31 — Novos módulos */}
       <Route path={"/workflow"} component={WorkflowDesigner} />
       <Route path={"/executive-dashboard"} component={ExecutiveDashboard} />

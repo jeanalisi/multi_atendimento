@@ -5,10 +5,11 @@
  * Suporta múltiplos signatários em ordem configurável.
  */
 import { useState } from "react";
-import { useRoute } from "wouter";
+import { useRoute, useLocation } from "wouter";
 import {
   Shield, PenLine, CheckCircle2, XCircle, AlertTriangle, Plus,
-  FileText, User, Building2, Clock, ChevronDown, ChevronUp, Trash2
+  FileText, User, Building2, Clock, ChevronDown, ChevronUp, Trash2,
+  Search
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -341,36 +342,172 @@ export function DocumentSignaturesPanel({
 // ─── Standalone Page ──────────────────────────────────────────────────────────
 
 export default function DocumentSignaturesPage() {
-  const [, params] = useRoute("/assinaturas/:entityType/:entityId");
-  const entityType = (params?.entityType ?? "document") as DocumentSignaturesProps["entityType"];
-  const entityId = parseInt(params?.entityId ?? "0");
+  // Suporta /assinaturas/:entityType/:entityId para acesso direto a um documento
+  const [matchDetail, paramsDetail] = useRoute("/assinaturas/:entityType/:entityId");
+  const entityType = (paramsDetail?.entityType ?? "document") as DocumentSignaturesProps["entityType"];
+  const entityId = parseInt(paramsDetail?.entityId ?? "0");
+
+  if (matchDetail && entityId > 0) {
+    return (
+      <DashboardLayout>
+        <div className="max-w-2xl mx-auto space-y-6">
+          <div>
+            <h1 className="text-xl font-bold flex items-center gap-2">
+              <Shield className="w-5 h-5 text-primary" />
+              Assinaturas Eletrônicas
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Gerencie as assinaturas eletrônicas e a chancela de autenticidade deste documento.
+            </p>
+          </div>
+          <DocumentSignaturesPanel entityType={entityType} entityId={entityId} />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Listagem geral de documentos com chancela
+  return <DocumentSignaturesListPage />;
+}
+
+function DocumentSignaturesListPage() {
+  const { data: docs = [], isLoading } = trpc.verification.list.useQuery({ limit: 100 });
+  const [search, setSearch] = useState("");
+  const [, setLocation] = useLocation();
+
+  const filtered = (docs as any[]).filter((d: any) =>
+    !search ||
+    d.title?.toLowerCase().includes(search.toLowerCase()) ||
+    d.nup?.toLowerCase().includes(search.toLowerCase()) ||
+    d.documentType?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const STATUS_LABELS: Record<string, { label: string; color: string }> = {
+    authentic: { label: "Autêntico", color: "bg-green-100 text-green-800" },
+    invalid: { label: "Inválido", color: "bg-red-100 text-red-800" },
+    cancelled: { label: "Cancelado", color: "bg-red-100 text-red-800" },
+    replaced: { label: "Substituído", color: "bg-amber-100 text-amber-800" },
+  };
 
   return (
     <DashboardLayout>
-      <div className="max-w-2xl mx-auto space-y-6">
-        <div>
-          <h1 className="text-xl font-bold flex items-center gap-2">
-            <Shield className="w-5 h-5 text-primary" />
-            Assinaturas Eletrônicas
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Gerencie as assinaturas eletrônicas e a chancela de autenticidade deste documento.
-          </p>
+      <div className="space-y-6">
+        {/* Cabeçalho */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold flex items-center gap-2">
+              <PenLine className="w-5 h-5 text-primary" />
+              Assinaturas Digitais
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Documentos com chancela de autenticidade e assinaturas eletrônicas emitidas pelo sistema.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.open("/verificar", "_blank")}
+          >
+            <Shield className="w-3.5 h-3.5 mr-1.5" />
+            Portal de Verificação
+          </Button>
         </div>
 
-        {entityId > 0 ? (
-          <DocumentSignaturesPanel
-            entityType={entityType}
-            entityId={entityId}
+        {/* Busca */}
+        <div className="relative max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            className="pl-9"
+            placeholder="Buscar por título, NUP ou tipo..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
           />
-        ) : (
-          <Card>
-            <CardContent className="py-8 text-center text-muted-foreground">
-              <AlertTriangle className="w-8 h-8 mx-auto mb-2 opacity-40" />
-              <p>Documento não encontrado.</p>
-            </CardContent>
-          </Card>
-        )}
+        </div>
+
+        {/* Estatísticas rápidas */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            { label: "Total de Documentos", value: (docs as any[]).length, icon: FileText, color: "text-blue-600" },
+            { label: "Autênticos", value: (docs as any[]).filter((d: any) => d.status === "authentic").length, icon: CheckCircle2, color: "text-green-600" },
+            { label: "Cancelados", value: (docs as any[]).filter((d: any) => d.status === "cancelled").length, icon: XCircle, color: "text-red-600" },
+            { label: "Substituídos", value: (docs as any[]).filter((d: any) => d.status === "replaced").length, icon: AlertTriangle, color: "text-amber-600" },
+          ].map(stat => (
+            <Card key={stat.label}>
+              <CardContent className="p-4 flex items-center gap-3">
+                <stat.icon className={`w-8 h-8 ${stat.color} opacity-80`} />
+                <div>
+                  <p className="text-2xl font-bold">{stat.value}</p>
+                  <p className="text-xs text-muted-foreground">{stat.label}</p>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Lista de documentos */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Documentos com Chancela</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            {isLoading ? (
+              <div className="py-12 text-center text-muted-foreground">
+                <Clock className="w-8 h-8 mx-auto mb-2 opacity-40 animate-spin" />
+                <p>Carregando...</p>
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="py-12 text-center text-muted-foreground">
+                <FileText className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                <p className="font-medium">Nenhum documento encontrado</p>
+                <p className="text-xs mt-1">Documentos com chancela emitida aparecerão aqui.</p>
+              </div>
+            ) : (
+              <div className="divide-y">
+                {filtered.map((doc: any) => {
+                  const statusCfg = STATUS_LABELS[doc.status] ?? { label: doc.status, color: "bg-gray-100 text-gray-800" };
+                  return (
+                    <div
+                      key={doc.id}
+                      className="flex items-center justify-between px-6 py-4 hover:bg-muted/40 cursor-pointer transition-colors"
+                      onClick={() => setLocation(`/assinaturas/${doc.entityType}/${doc.entityId}`)}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                          <Shield className="w-4 h-4 text-primary" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-medium text-sm truncate">{doc.title}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {doc.documentType}
+                            {doc.nup && <span className="ml-2 font-mono">{doc.nup}</span>}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusCfg.color}`}>
+                          {statusCfg.label}
+                        </span>
+                        <span className="text-xs text-muted-foreground hidden sm:block">
+                          {doc.issuedAt ? new Date(doc.issuedAt).toLocaleDateString("pt-BR") : "—"}
+                        </span>
+                        <ChevronDown className="w-4 h-4 text-muted-foreground -rotate-90" />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Dica de uso */}
+        <Card className="border-dashed">
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground">
+              <strong>Como funciona:</strong> A chancela de autenticidade é emitida automaticamente ao publicar documentos oficiais, protocolos ou processos. Após emitida, agentes autorizados podem assinar eletronicamente com nível institucional, avançado ou qualificado (ICP-Brasil).
+            </p>
+          </CardContent>
+        </Card>
       </div>
     </DashboardLayout>
   );

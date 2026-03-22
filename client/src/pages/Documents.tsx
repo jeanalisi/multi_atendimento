@@ -30,10 +30,12 @@ import {
   PenLine,
   Plus,
   Search,
+  Shield,
   Sparkles,
   Trash2,
 } from "lucide-react";
 import { useRef, useState } from "react";
+import { useLocation } from "wouter";
 import { toast } from "sonner";
 
 const DOC_TYPE_LABELS: Record<string, string> = {
@@ -326,6 +328,7 @@ export default function Documents() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const utils = trpc.useUtils();
+  const [, setLocation] = useLocation();
 
   const { data: documents, isLoading } = trpc.caius.documents.list.useQuery({
     type: typeFilter === "all" ? undefined : typeFilter,
@@ -420,11 +423,21 @@ export default function Documents() {
                           <span className="text-xs text-muted-foreground">{new Date(document.createdAt).toLocaleDateString("pt-BR")}</span>
                         </td>
                         <td className="px-4 py-3">
-                          {document.status === "draft" || document.status === "pending_signature" ? (
-                            <SignDocumentButton documentId={document.id} nup={document.nup} />
-                          ) : (
-                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                          )}
+                          <div className="flex items-center gap-1.5">
+                            {(document.status === "draft" || document.status === "pending_signature") && (
+                              <SignDocumentButton documentId={document.id} nup={document.nup} />
+                            )}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="gap-1.5 text-xs"
+                              title="Ver chancela e assinaturas digitais"
+                              onClick={(e) => { e.stopPropagation(); setLocation(`/assinaturas/document/${document.id}`); }}
+                            >
+                              <Shield className="h-3 w-3" />
+                              Chancela
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     );
