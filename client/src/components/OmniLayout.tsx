@@ -79,7 +79,6 @@ const caiusItems = [
   { href: "/sign-external-pdf", icon: Upload, label: "Assinar PDF Externo" },
   { href: "/ombudsman", icon: BookOpen, label: "Ouvidoria" },
   { href: "/templates", icon: PenLine, label: "Modelos de Documentos" },
-  { href: "/workflow", icon: Workflow, label: "Workflows" },
   { href: "/executive-dashboard", icon: TrendingUp, label: "Dashboard Executivo" },
   { href: "/ouvidoria-admin", icon: Globe, label: "Ouvidoria / e-SIC" },
   { href: "/geo-monitor", icon: MapPin, label: "Geo Monitor" },
@@ -91,6 +90,7 @@ const channelItems = [
 ];
 
 const adminItems = [
+  { href: "/workflow", icon: Workflow, label: "Fluxos" },
   { href: "/accounts", icon: Wifi, label: "Contas Conectadas" },
   { href: "/agents", icon: Users, label: "Agentes e Usuários" },
   { href: "/sectors", icon: Building2, label: "Setores" },

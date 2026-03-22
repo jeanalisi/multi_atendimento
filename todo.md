@@ -670,3 +670,6 @@
 - [x] Unidade certificadora sempre sendo o órgão emissor
 - [x] Título original preservado na exportação e visualização
 - [x] Testes automatizados passando (76 testes, 6 arquivos)
+
+## Correção: Restaurar opção de Fluxos no menu
+- [x] Adicionar item "Fluxos" (workflows) no grupo Administração do menu lateral
