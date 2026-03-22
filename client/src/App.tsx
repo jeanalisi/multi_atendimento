@@ -38,6 +38,8 @@ import EstruturaAdministrativa from "./pages/EstruturaAdministrativa";
 import ServicoDetalhe from "./pages/ServicoDetalhe";
 import CustomModules from "./pages/CustomModules";
 import CustomModuleRecords from "./pages/CustomModuleRecords";
+import VerifyDocument from "./pages/VerifyDocument";
+import DocumentSignaturesPage from "./pages/DocumentSignatures";
 
 function ProtocolDetailWrapper() {
   const params = useParams<{ id: string }>();
@@ -55,6 +57,8 @@ function Router() {
       <Route path={"/consultar-protocolo"} component={PublicConsulta} />
       <Route path={"/consulta-publica"} component={PublicConsulta} />
       <Route path={"/convite/:token"} component={AcceptInvite} />
+      <Route path={"/verificar/:key"} component={VerifyDocument} />
+      <Route path={"/verificar"} component={VerifyDocument} />
       <Route path={"/central-cidadao"} component={CentralCidadao} />
       <Route path={"/estrutura-administrativa"} component={EstruturaAdministrativa} />
       <Route path={"/estrutura"} component={EstruturaAdministrativa} />

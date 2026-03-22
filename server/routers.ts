@@ -57,6 +57,7 @@ import { testImapConnection, testSmtpConnection, sendEmail, fetchEmails } from "
 import { getIo } from "./_core/socketio";
 import { caiusRouter } from "./routers-caius";
 import { customModulesRouter } from "./routers-modules";
+import { verificationRouter } from "./routers-verification";
 import { orgUnitsRouter, positionsRouter, userAllocationsRouter, orgInvitesRouter } from "./routers-org";
 import {
   serviceTypesRouter,
@@ -441,6 +442,7 @@ export const appRouter = router({
   // ── CAIUS Modules ──────────────────────────────────────────────────────────
   caius: caiusRouter,
   customModules: customModulesRouter,
+  verification: verificationRouter,
   // ── Advanced Modules ──────────────────────────────────────────────────────
   serviceTypes: serviceTypesRouter,
   serviceSubjects: serviceSubjectsRouter,

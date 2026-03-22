@@ -931,3 +931,99 @@ export const customModuleRecords = mysqlTable("customModuleRecords", {
 }));
 export type CustomModuleRecord = typeof customModuleRecords.$inferSelect;
 export type InsertCustomModuleRecord = typeof customModuleRecords.$inferInsert;
+
+// ─── Verifiable Documents (Documentos com chave de autenticidade) ─────────────
+export const verifiableDocuments = mysqlTable("verifiableDocuments", {
+  id: int("id").autoincrement().primaryKey(),
+  // Vínculo com entidade original
+  entityType: mysqlEnum("entityType", ["protocol", "process", "document", "ombudsman", "template", "receipt", "report", "custom"]).notNull(),
+  entityId: int("entityId").notNull(),
+  nup: varchar("nup", { length: 32 }),
+  // Identificação e autenticidade
+  verificationKey: varchar("verificationKey", { length: 128 }).notNull().unique(), // Chave única de verificação
+  documentHash: varchar("documentHash", { length: 256 }),   // SHA-256 do conteúdo
+  // Metadados públicos
+  title: varchar("title", { length: 512 }).notNull(),
+  documentType: varchar("documentType", { length: 128 }).notNull(), // ofício, memorando, certidão...
+  documentNumber: varchar("documentNumber", { length: 64 }),
+  issuingUnit: varchar("issuingUnit", { length: 256 }),
+  issuingUserId: int("issuingUserId"),
+  issuingUserName: varchar("issuingUserName", { length: 255 }),
+  // Status e versão
+  status: mysqlEnum("status", ["authentic", "invalid", "cancelled", "replaced", "revoked", "unavailable"]).default("authentic").notNull(),
+  version: int("version").default(1).notNull(),
+  replacedById: int("replacedById"),  // ID do documento que substituiu este
+  // QR Code e links
+  verificationUrl: varchar("verificationUrl", { length: 1024 }),
+  qrCodeData: text("qrCodeData"),     // SVG ou base64 do QR Code
+  // Controle
+  isPublic: boolean("isPublic").default(true).notNull(),
+  issuedAt: timestamp("issuedAt").defaultNow().notNull(),
+  invalidatedAt: timestamp("invalidatedAt"),
+  invalidationReason: text("invalidationReason"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  keyIdx: index("vd_key_idx").on(table.verificationKey),
+  nupIdx: index("vd_nup_idx").on(table.nup),
+  entityIdx: index("vd_entity_idx").on(table.entityType, table.entityId),
+}));
+export type VerifiableDocument = typeof verifiableDocuments.$inferSelect;
+export type InsertVerifiableDocument = typeof verifiableDocuments.$inferInsert;
+
+// ─── Document Signatures (Assinaturas eletrônicas por documento) ──────────────
+export const documentSignatures = mysqlTable("documentSignatures", {
+  id: int("id").autoincrement().primaryKey(),
+  verifiableDocumentId: int("verifiableDocumentId").notNull(),
+  nup: varchar("nup", { length: 32 }),
+  // Signatário
+  signerId: int("signerId").notNull(),
+  signerName: varchar("signerName", { length: 255 }).notNull(),
+  signerCpfMasked: varchar("signerCpfMasked", { length: 20 }),  // Ex: ***.***.456-**
+  signerRole: varchar("signerRole", { length: 128 }),
+  signerUnit: varchar("signerUnit", { length: 256 }),
+  // Tipo e método
+  signatureType: mysqlEnum("signatureType", ["institutional", "advanced", "qualified"]).default("institutional").notNull(),
+  signatureMethod: varchar("signatureMethod", { length: 128 }).default("CAIUS-INSTITUTIONAL"),
+  // Criptografia e integridade
+  documentHash: varchar("documentHash", { length: 256 }),
+  signatureHash: varchar("signatureHash", { length: 256 }),
+  certificate: text("certificate"),        // Certificado ou credencial, quando houver
+  certIssuer: varchar("certIssuer", { length: 512 }),
+  algorithm: varchar("algorithm", { length: 64 }).default("SHA-256"),
+  // Evidências
+  ipAddress: varchar("ipAddress", { length: 64 }),
+  userAgent: text("userAgent"),
+  // Código de acesso e verificação
+  accessCode: varchar("accessCode", { length: 128 }).notNull().unique(),
+  verificationUrl: varchar("verificationUrl", { length: 1024 }),
+  // Status e controle
+  status: mysqlEnum("status", ["valid", "invalid", "altered", "revoked", "expired", "replaced"]).default("valid").notNull(),
+  signedAt: timestamp("signedAt").defaultNow().notNull(),
+  revokedAt: timestamp("revokedAt"),
+  revocationReason: text("revocationReason"),
+  // Ordem na cadeia de assinaturas
+  signatureOrder: int("signatureOrder").default(1).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({
+  docIdx: index("ds_doc_idx").on(table.verifiableDocumentId),
+  codeIdx: index("ds_code_idx").on(table.accessCode),
+  signerIdx: index("ds_signer_idx").on(table.signerId),
+}));
+export type DocumentSignature = typeof documentSignatures.$inferSelect;
+export type InsertDocumentSignature = typeof documentSignatures.$inferInsert;
+
+// ─── Document Verification Logs (Logs de acesso à verificação pública) ────────
+export const documentVerificationLogs = mysqlTable("documentVerificationLogs", {
+  id: int("id").autoincrement().primaryKey(),
+  verifiableDocumentId: int("verifiableDocumentId"),
+  verificationKey: varchar("verificationKey", { length: 128 }),
+  accessCode: varchar("accessCode", { length: 128 }),
+  queryType: mysqlEnum("queryType", ["nup", "key", "qrcode", "link"]).default("key").notNull(),
+  ipAddress: varchar("ipAddress", { length: 64 }),
+  userAgent: text("userAgent"),
+  result: mysqlEnum("result", ["found", "not_found", "invalid"]).default("found").notNull(),
+  accessedAt: timestamp("accessedAt").defaultNow().notNull(),
+});
+export type DocumentVerificationLog = typeof documentVerificationLogs.$inferSelect;
+export type InsertDocumentVerificationLog = typeof documentVerificationLogs.$inferInsert;

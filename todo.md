@@ -507,3 +507,33 @@
 - [x] Corrigir georreferenciamento — campo GeoField no formulário dinâmico com GPS + endereço via Nominatim
 - [x] Captura de selfie dentro do sistema — campo SelfieField com câmera ao vivo e captura de foto
 - [x] 73 testes passando, TypeScript 0 erros
+
+## Fase 29: Autenticação de Documentos — Chave, QR Code, Chancela e Assinatura Eletrônica [CONCLUÍDO]
+
+### Banco de Dados
+- [x] Tabela: verifiableDocuments (documentos verificáveis com chave, hash, QR Code, status, versão)
+- [x] Tabela: documentSignatures (assinaturas eletrônicas por documento: signatário, tipo, hash, IP, status)
+- [x] Tabela: documentVerificationLogs (logs de acesso à verificação pública)
+
+### Backend
+- [x] Procedure: verification.issue — emitir documento verificável com chave e QR Code
+- [x] Procedure: verification.verify — verificar autenticidade por NUP ou chave (pública)
+- [x] Procedure: verification.sign — assinar documento (institucional/avançada/qualificada)
+- [x] Procedure: verification.getByEntity — listar signatários de um documento
+- [x] Procedure: verification.revokeSignature — revogar assinatura
+- [x] Procedure: verification.invalidate — invalidar documento
+- [x] Procedure: verification.list — listar documentos verificáveis
+
+### Frontend — Componentes
+- [x] Componente: DocumentChancela — chancela visual com QR Code, chave, NUP, signatários, status
+- [x] Componente: DocumentSignaturesPanel — painel de assinaturas com modal de assinatura (3 níveis)
+
+### Frontend — Páginas Internas
+- [x] Modal de assinatura de documento (selecionar tipo: institucional/avançada/qualificada)
+- [x] Página: DocumentSignatures.tsx — módulo interno de assinaturas com múltiplos signatários
+
+### Frontend — Central do Cidadão
+- [x] Página pública: /verificar/:key — verificação de autenticidade por chave ou NUP
+- [x] Exibe: status (autêntico/inválido/cancelado/substituído), tipo, signatários, data, órgão emissor
+- [x] Acesso direto por QR Code (rota pública sem autenticação)
+- [x] 73 testes passando, TypeScript 0 erros
