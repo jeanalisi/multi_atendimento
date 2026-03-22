@@ -556,6 +556,71 @@ export async function publicLookupByNup(nup: string) {
   return null;
 }
 
+// ─── Public Tramitations Lookup (sem autenticação) ───────────────────────────
+export async function getPublicTramitationsByNup(nup: string) {
+  const db = await getDb();
+  if (!db) return [];
+
+  // Busca o protocolo pelo NUP para obter o protocolId
+  const proto = await db
+    .select({ id: protocols.id, isConfidential: protocols.isConfidential })
+    .from(protocols)
+    .where(eq(protocols.nup, nup))
+    .limit(1);
+
+  if (!proto[0]) return [];
+  if (proto[0].isConfidential) return [];
+
+  // Busca tramitações com nomes dos setores
+  const rows = await db
+    .select({
+      id: tramitations.id,
+      action: tramitations.action,
+      dispatch: tramitations.dispatch,
+      createdAt: tramitations.createdAt,
+      fromSectorId: tramitations.fromSectorId,
+      toSectorId: tramitations.toSectorId,
+    })
+    .from(tramitations)
+    .where(eq(tramitations.protocolId, proto[0].id))
+    .orderBy(tramitations.createdAt);
+
+  // Busca nomes dos setores envolvidos
+  const sectorIds = Array.from(new Set([
+    ...rows.map(r => r.fromSectorId).filter((x): x is number => x != null),
+    ...rows.map(r => r.toSectorId).filter((x): x is number => x != null),
+  ]));
+
+  const sectorMap: Record<number, string> = {};
+  if (sectorIds.length > 0) {
+    const sectorRows = await db
+      .select({ id: sectors.id, name: sectors.name })
+      .from(sectors)
+      .where(sql`${sectors.id} IN (${sql.join(sectorIds.map(id => sql`${id}`), sql`, `)})`);
+    for (const s of sectorRows) sectorMap[s.id] = s.name;
+  }
+
+  const ACTION_LABELS: Record<string, string> = {
+    forward: "Encaminhado",
+    return: "Devolvido",
+    assign: "Atribuído",
+    conclude: "Concluído",
+    archive: "Arquivado",
+    reopen: "Reaberto",
+    comment: "Observação",
+  };
+
+  return rows.map(r => ({
+    id: r.id,
+    action: r.action,
+    actionLabel: ACTION_LABELS[r.action] ?? r.action,
+    dispatch: r.dispatch ?? null,
+    createdAt: r.createdAt,
+    fromSector: r.fromSectorId ? (sectorMap[r.fromSectorId] ?? "Setor desconhecido") : null,
+    toSector: r.toSectorId ? (sectorMap[r.toSectorId] ?? "Setor desconhecido") : null,
+  }));
+}
+
 // ─── Public CPF/CNPJ Lookup (sem autenticação) ────────────────────────────────
 export async function publicLookupByCpfCnpj(cpfCnpj: string) {
   const db = await getDb();

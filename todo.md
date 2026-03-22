@@ -436,3 +436,21 @@
 - [x] Atualizar placeholder e texto de exemplo na página de Consulta Pública (PublicConsulta.tsx)
 - [x] Novos protocolos gerados com formato PMI-AAAA-NNNNNN (ex: PMI-2026-000001)
 - [x] 73 testes passando, TypeScript 0 erros
+
+## Fase 25: Tramitação Pública e Dados de Contato da Central do Cidadão [CONCLUÍDO]
+
+### Backend
+- [x] Procedure pública: caius.public.getTramitations(nup) — retorna tramitações com setores, ação e despacho
+- [x] Campos de contato reutilizam institutionalConfig com prefixo contact_*
+
+### Frontend — Consulta Pública
+- [x] Linha do tempo de tramitação na página de resultado do NUP (componente TramitationTimeline)
+- [x] Exibe: data, setor de origem, setor de destino, ação com ícone colorido, despacho
+- [x] Tramitações sigilosas não são retornadas pela API pública
+
+### Frontend — Central do Cidadão
+- [x] Dados de contato dinâmicos (telefone, email, endereço, horário) na Central do Cidadão
+- [x] Aba "Contato" em Configurações Institucionais com campos: telefone, WhatsApp, e-mail, endereço, horários, site, redes sociais, nome no rodapé, ano do copyright
+- [x] Preview em tempo real da barra institucional com os dados configurados
+- [x] Barra superior, canais de atendimento e rodapé da Central do Cidadão usam dados dinâmicos
+- [x] 73 testes passando, TypeScript 0 erros

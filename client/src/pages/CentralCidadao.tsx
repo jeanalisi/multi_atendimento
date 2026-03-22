@@ -78,6 +78,19 @@ export default function CentralCidadao() {
     { enabled: !!selectedService?.id }
   );
   const { data: orgTree } = trpc.orgUnits.treePublic.useQuery();
+  const { data: configs = [] } = trpc.institutionalConfig.get.useQuery();
+  const cfg = (configs as any[]).reduce((acc: Record<string, string>, c: any) => {
+    acc[c.key] = c.value ?? "";
+    return acc;
+  }, {} as Record<string, string>);
+  const contactPhone = cfg.contact_phone || "0800-000-0000";
+  const contactEmail = cfg.contact_email || "atendimento@municipio.gov.br";
+  const contactAddress = cfg.contact_address || "Praça da Prefeitura, s/n";
+  const contactHoursPhone = cfg.contact_hours_phone || "Seg–Sex, 8h–18h";
+  const contactHoursPresential = cfg.contact_hours_presential || "Seg–Sex, 8h–17h";
+  const contactWebsite = cfg.contact_website || cfg.org_website || "/";
+  const footerName = cfg.contact_footer_name || cfg.org_name || "Prefeitura Municipal";
+  const copyrightYear = cfg.contact_copyright_year || new Date().getFullYear().toString();
 
   const categories = Array.from(
     new Set((services as any[]).filter((s) => s.category).map((s: any) => s.category))
@@ -98,13 +111,13 @@ export default function CentralCidadao() {
       ═══════════════════════════════════════════════════════════════════════ */}
       <div className="bg-blue-800 text-white text-xs py-1.5 px-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-          <span className="hidden sm:block opacity-80">Prefeitura Municipal de Itabaiana — Serviços Públicos Digitais</span>
+          <span className="hidden sm:block opacity-80">{footerName} — Serviços Públicos Digitais</span>
           <div className="flex items-center gap-4 ml-auto">
-            <a href="tel:" className="flex items-center gap-1 opacity-70 hover:opacity-100 transition-opacity">
-              <Phone className="w-3 h-3" />0800-000-0000
+            <a href={`tel:${contactPhone}`} className="flex items-center gap-1 opacity-70 hover:opacity-100 transition-opacity">
+              <Phone className="w-3 h-3" />{contactPhone}
             </a>
-            <a href="mailto:atendimento@itabaiana.se.gov.br" className="flex items-center gap-1 opacity-70 hover:opacity-100 transition-opacity">
-              <Mail className="w-3 h-3" />atendimento@municipio.gov.br
+            <a href={`mailto:${contactEmail}`} className="flex items-center gap-1 opacity-70 hover:opacity-100 transition-opacity">
+              <Mail className="w-3 h-3" />{contactEmail}
             </a>
           </div>
         </div>
@@ -491,23 +504,23 @@ export default function CentralCidadao() {
                 <MessageSquare className="w-5 h-5" />Canais de Atendimento
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="bg-white rounded-xl border border-blue-100 p-4 text-center">
+                <a href={`tel:${contactPhone}`} className="bg-white rounded-xl border border-blue-100 p-4 text-center hover:border-blue-300 transition-colors block">
                   <Phone className="w-6 h-6 text-blue-600 mx-auto mb-2" />
                   <p className="font-semibold text-gray-900 text-sm">Telefone</p>
-                  <p className="text-xs text-gray-500 mt-0.5">0800-000-0000</p>
-                  <p className="text-[11px] text-gray-400 mt-0.5">Seg–Sex, 8h–18h</p>
-                </div>
-                <div className="bg-white rounded-xl border border-blue-100 p-4 text-center">
+                  <p className="text-xs text-gray-500 mt-0.5">{contactPhone}</p>
+                  <p className="text-[11px] text-gray-400 mt-0.5">{contactHoursPhone}</p>
+                </a>
+                <a href={`mailto:${contactEmail}`} className="bg-white rounded-xl border border-blue-100 p-4 text-center hover:border-blue-300 transition-colors block">
                   <Mail className="w-6 h-6 text-blue-600 mx-auto mb-2" />
                   <p className="font-semibold text-gray-900 text-sm">E-mail</p>
-                  <p className="text-xs text-gray-500 mt-0.5">atendimento@municipio.gov.br</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{contactEmail}</p>
                   <p className="text-[11px] text-gray-400 mt-0.5">Resposta em 24h</p>
-                </div>
+                </a>
                 <div className="bg-white rounded-xl border border-blue-100 p-4 text-center">
                   <MapPin className="w-6 h-6 text-blue-600 mx-auto mb-2" />
                   <p className="font-semibold text-gray-900 text-sm">Presencial</p>
-                  <p className="text-xs text-gray-500 mt-0.5">Praça da Prefeitura, s/n</p>
-                  <p className="text-[11px] text-gray-400 mt-0.5">Seg–Sex, 8h–17h</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{contactAddress}</p>
+                  <p className="text-[11px] text-gray-400 mt-0.5">{contactHoursPresential}</p>
                 </div>
               </div>
             </div>
@@ -533,7 +546,7 @@ export default function CentralCidadao() {
                 </div>
               </div>
               <p className="text-xs text-gray-400 leading-relaxed max-w-xs">
-                Plataforma digital oficial da Prefeitura Municipal de Itabaiana para prestação de serviços públicos ao cidadão.
+                Plataforma digital oficial de {footerName} para prestação de serviços públicos ao cidadão.
               </p>
             </div>
 
@@ -552,17 +565,17 @@ export default function CentralCidadao() {
             <div>
               <h4 className="text-xs font-semibold text-white uppercase tracking-wider mb-3">Contato</h4>
               <ul className="space-y-2 text-xs text-gray-400">
-                <li className="flex items-center gap-1.5"><Phone className="w-3 h-3" />0800-000-0000</li>
-                <li className="flex items-center gap-1.5"><Mail className="w-3 h-3" />atendimento@municipio.gov.br</li>
-                <li className="flex items-center gap-1.5"><MapPin className="w-3 h-3" />Praça da Prefeitura, s/n</li>
-                <li className="flex items-center gap-1.5"><Globe className="w-3 h-3" /><a href="/" className="hover:text-white transition-colors">www.itabaiana.se.gov.br</a></li>
+                <li className="flex items-center gap-1.5"><Phone className="w-3 h-3" />{contactPhone}</li>
+                <li className="flex items-center gap-1.5"><Mail className="w-3 h-3" />{contactEmail}</li>
+                <li className="flex items-center gap-1.5"><MapPin className="w-3 h-3" />{contactAddress}</li>
+                {contactWebsite && <li className="flex items-center gap-1.5"><Globe className="w-3 h-3" /><a href={contactWebsite} className="hover:text-white transition-colors">{contactWebsite.replace(/^https?:\/\//, "")}</a></li>}
               </ul>
             </div>
           </div>
 
           <div className="border-t border-gray-800 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
             <p className="text-[11px] text-gray-500">
-              © 2025 Prefeitura Municipal de Itabaiana. Todos os direitos reservados.
+              © {copyrightYear} {footerName}. Todos os direitos reservados.
             </p>
             <div className="flex items-center gap-4 text-[11px] text-gray-500">
               <a href="/" className="hover:text-gray-300 transition-colors">Política de Privacidade</a>

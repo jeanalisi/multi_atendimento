@@ -39,6 +39,7 @@ import {
   getTramitationsByProtocol,
   publicLookupByNup,
   publicLookupByCpfCnpj,
+  getPublicTramitationsByNup,
   updateAdminProcess,
   updateAiProvider,
   updateDocumentTemplate,
@@ -791,6 +792,12 @@ export const caiusRouter = router({
             ? { ...r.data, subject: "REGISTRO SIGILOSO" }
             : r.data,
         }));
+      }),
+
+    getTramitations: publicProcedure
+      .input(z.object({ nup: z.string().min(1) }))
+      .query(async ({ input }) => {
+        return getPublicTramitationsByNup(input.nup);
       }),
   }),
 });

@@ -7,13 +7,16 @@ import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import {
   ArrowLeft,
+  ArrowRight,
   BookOpen,
   CheckCircle2,
   ClipboardList,
   Clock,
   FileText,
+  GitBranch,
   Loader2,
   Lock,
+  MessageSquare,
   Scale,
   Search,
   Shield,
@@ -31,6 +34,26 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
   archived: { label: "Arquivado", color: "text-gray-600", bg: "bg-gray-50 border-gray-200", icon: Clock },
   received: { label: "Recebida", color: "text-blue-700", bg: "bg-blue-50 border-blue-200", icon: Clock },
   answered: { label: "Respondida", color: "text-green-700", bg: "bg-green-50 border-green-200", icon: CheckCircle2 },
+};
+
+const ACTION_ICONS: Record<string, any> = {
+  forward: ArrowRight,
+  return: ArrowLeft,
+  assign: User,
+  conclude: CheckCircle2,
+  archive: FileText,
+  reopen: Clock,
+  comment: MessageSquare,
+};
+
+const ACTION_COLORS: Record<string, string> = {
+  forward: "bg-blue-100 text-blue-700 border-blue-200",
+  return: "bg-orange-100 text-orange-700 border-orange-200",
+  assign: "bg-purple-100 text-purple-700 border-purple-200",
+  conclude: "bg-green-100 text-green-700 border-green-200",
+  archive: "bg-gray-100 text-gray-600 border-gray-200",
+  reopen: "bg-yellow-100 text-yellow-700 border-yellow-200",
+  comment: "bg-slate-100 text-slate-600 border-slate-200",
 };
 
 const ENTITY_ICONS: Record<string, any> = {
@@ -51,10 +74,88 @@ const ENTITY_LABELS: Record<string, string> = {
   document: "Documento Oficial",
 };
 
+// ─── Componente: Linha do Tempo de Tramitação ─────────────────────────────────
+function TramitationTimeline({ nup }: { nup: string }) {
+  const { data: tramitations, isLoading } = trpc.caius.public.getTramitations.useQuery(
+    { nup },
+    { enabled: !!nup, retry: false }
+  );
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center gap-2 py-4 text-gray-400 text-sm">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Carregando histórico de tramitação...
+      </div>
+    );
+  }
+
+  if (!tramitations || tramitations.length === 0) {
+    return (
+      <div className="py-3 text-sm text-gray-400 italic">
+        Nenhuma tramitação registrada até o momento.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-0">
+      {tramitations.map((t, idx) => {
+        const ActionIcon = ACTION_ICONS[t.action] ?? GitBranch;
+        const colorClass = ACTION_COLORS[t.action] ?? "bg-gray-100 text-gray-600 border-gray-200";
+        const isLast = idx === tramitations.length - 1;
+        return (
+          <div key={t.id} className="flex gap-3">
+            {/* Linha vertical */}
+            <div className="flex flex-col items-center">
+              <div className={cn("h-7 w-7 rounded-full border flex items-center justify-center flex-shrink-0 mt-1", colorClass)}>
+                <ActionIcon className="h-3.5 w-3.5" />
+              </div>
+              {!isLast && <div className="w-px flex-1 bg-gray-200 my-1" />}
+            </div>
+            {/* Conteúdo */}
+            <div className={cn("pb-4 flex-1", isLast ? "" : "")}>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={cn("text-xs font-semibold px-2 py-0.5 rounded-full border", colorClass)}>
+                  {t.actionLabel}
+                </span>
+                <span className="text-xs text-gray-400">
+                  {new Date(t.createdAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                </span>
+              </div>
+              {(t.fromSector || t.toSector) && (
+                <div className="flex items-center gap-1.5 mt-1.5 text-xs text-gray-600">
+                  {t.fromSector && (
+                    <span className="bg-gray-100 border border-gray-200 rounded px-1.5 py-0.5">{t.fromSector}</span>
+                  )}
+                  {t.fromSector && t.toSector && (
+                    <ArrowRight className="h-3 w-3 text-gray-400 flex-shrink-0" />
+                  )}
+                  {t.toSector && (
+                    <span className="bg-blue-50 border border-blue-100 rounded px-1.5 py-0.5 text-blue-700">{t.toSector}</span>
+                  )}
+                </div>
+              )}
+              {t.dispatch && (
+                <p className="mt-1.5 text-xs text-gray-600 bg-gray-50 border border-gray-100 rounded p-2 leading-relaxed">
+                  {t.dispatch}
+                </p>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Componente: Card de Resultado ────────────────────────────────────────────
 function ResultCard({ result }: { result: { entity: string; data: any } }) {
   const EntityIcon = ENTITY_ICONS[result.entity] ?? ClipboardList;
   const statusCfg = STATUS_CONFIG[(result.data as any).status] ?? STATUS_CONFIG.open;
   const StatusIcon = statusCfg.icon;
+  const isProtocol = result.entity === "protocol";
+  const nup = (result.data as any).nup as string;
 
   return (
     <Card className="bg-white border border-gray-200 shadow-sm">
@@ -75,47 +176,61 @@ function ResultCard({ result }: { result: { entity: string; data: any } }) {
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-4">
         {(result.data as any).isConfidential ? (
           <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 border border-red-200">
             <Lock className="h-4 w-4 text-red-500 flex-shrink-0" />
             <p className="text-sm text-red-700">Este registro é sigiloso. Informações restritas.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div>
-              <p className="text-xs text-gray-500 mb-1">NUP</p>
-              <p className="font-mono text-xs bg-blue-50 text-blue-700 border border-blue-100 rounded px-2 py-1 inline-block">
-                {(result.data as any).nup}
-              </p>
-            </div>
-            {(result.data as any).type && (
+          <>
+            <div className="grid grid-cols-2 gap-3 text-sm">
               <div>
-                <p className="text-xs text-gray-500 mb-1">Tipo</p>
-                <p className="text-gray-800 capitalize text-xs">{(result.data as any).type}</p>
-              </div>
-            )}
-            <div>
-              <p className="text-xs text-gray-500 mb-1">Data de Abertura</p>
-              <p className="text-gray-800 text-xs">
-                {new Date((result.data as any).createdAt).toLocaleDateString("pt-BR")}
-              </p>
-            </div>
-            {(result.data as any).updatedAt && (
-              <div>
-                <p className="text-xs text-gray-500 mb-1">Última Atualização</p>
-                <p className="text-gray-800 text-xs">
-                  {new Date((result.data as any).updatedAt).toLocaleDateString("pt-BR")}
+                <p className="text-xs text-gray-500 mb-1">NUP</p>
+                <p className="font-mono text-xs bg-blue-50 text-blue-700 border border-blue-100 rounded px-2 py-1 inline-block">
+                  {nup}
                 </p>
               </div>
+              {(result.data as any).type && (
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Tipo</p>
+                  <p className="text-gray-800 capitalize text-xs">{(result.data as any).type}</p>
+                </div>
+              )}
+              <div>
+                <p className="text-xs text-gray-500 mb-1">Data de Abertura</p>
+                <p className="text-gray-800 text-xs">
+                  {new Date((result.data as any).createdAt).toLocaleDateString("pt-BR")}
+                </p>
+              </div>
+              {(result.data as any).updatedAt && (
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Última Atualização</p>
+                  <p className="text-gray-800 text-xs">
+                    {new Date((result.data as any).updatedAt).toLocaleDateString("pt-BR")}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Histórico de Tramitação — apenas para protocolos */}
+            {isProtocol && (
+              <div className="border-t border-gray-100 pt-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <GitBranch className="h-4 w-4 text-gray-500" />
+                  <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Histórico de Tramitação</p>
+                </div>
+                <TramitationTimeline nup={nup} />
+              </div>
             )}
-          </div>
+          </>
         )}
       </CardContent>
     </Card>
   );
 }
 
+// ─── Busca por NUP ────────────────────────────────────────────────────────────
 function NupSearch() {
   const [nupInput, setNupInput] = useState("");
   const [searchNup, setSearchNup] = useState("");
@@ -171,6 +286,7 @@ function NupSearch() {
   );
 }
 
+// ─── Busca por CPF/CNPJ ───────────────────────────────────────────────────────
 function CpfCnpjSearch() {
   const [cpfInput, setCpfInput] = useState("");
   const [searchCpf, setSearchCpf] = useState("");
@@ -233,6 +349,7 @@ function CpfCnpjSearch() {
   );
 }
 
+// ─── Página Principal ─────────────────────────────────────────────────────────
 export default function PublicConsulta() {
   return (
     <div className="light min-h-screen flex flex-col" style={{ background: "#f8fafc", color: "#1e293b" }}>
@@ -244,8 +361,8 @@ export default function PublicConsulta() {
               <Scale className="h-5 w-5 text-white" />
             </div>
             <div>
-              <p className="text-sm font-bold text-gray-900">CAIUS</p>
-              <p className="text-[10px] text-gray-500">Consulta Pública de Protocolos</p>
+              <p className="text-sm font-bold text-gray-900">Consulta Pública</p>
+              <p className="text-[10px] text-gray-500">Acompanhamento de Protocolos</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -284,12 +401,12 @@ export default function PublicConsulta() {
           <Card className="bg-white border border-gray-200 shadow-sm">
             <CardContent className="p-6">
               <Tabs defaultValue="nup">
-                <TabsList className="grid w-full grid-cols-2 mb-6 bg-gray-100">
-                  <TabsTrigger value="nup" className="gap-2 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm">
+                <TabsList className="w-full mb-5 bg-gray-100">
+                  <TabsTrigger value="nup" className="flex-1 gap-2 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm">
                     <ClipboardList className="h-4 w-4" />
                     Buscar por NUP
                   </TabsTrigger>
-                  <TabsTrigger value="cpf" className="gap-2 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm">
+                  <TabsTrigger value="cpf" className="flex-1 gap-2 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm">
                     <User className="h-4 w-4" />
                     Buscar por CPF/CNPJ
                   </TabsTrigger>
@@ -322,7 +439,7 @@ export default function PublicConsulta() {
       <footer className="bg-white border-t border-gray-200 py-5">
         <div className="max-w-4xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-2">
           <p className="text-xs text-gray-500">
-            CAIUS — Plataforma Pública Omnichannel de Atendimento e Gestão Administrativa
+            Plataforma Pública Omnichannel de Atendimento e Gestão Administrativa
           </p>
           <div className="flex items-center gap-4 text-xs text-gray-400">
             <Link href="/central-cidadao" className="hover:text-gray-700 transition-colors">Central do Cidadão</Link>
