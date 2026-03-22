@@ -200,3 +200,11 @@
 - [x] TypeScript sem erros (0 erros de compilação)
 - [x] Servidor rodando corretamente (HTTP 200)
 - [x] Checkpoint final e entrega
+
+## Fase 16: Correção de Bugs Críticos de Navegação e Layout
+- [x] Menus sumindo — OmniLayout reescrito com sidebar expandido (240px) com labels visíveis + barra superior
+- [x] Toggle claro/escuro — restaurado no header com ícones Sun/Moon e ThemeContext switchable
+- [x] Inbox — corrigido com prop fullHeight + h-full para layout completo ao abrir conversa
+- [x] Protocolos, Processos, Documentos, Ouvidoria, Modelos — páginas acessíveis (problema era crash do servidor por db-service-config, resolvido)
+- [x] TypeScript: 0 erros de compilação
+- [x] Servidor rodando corretamente (HTTP 200)

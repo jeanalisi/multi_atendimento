@@ -142,7 +142,7 @@ export default function Inbox() {
   };
 
   return (
-    <OmniLayout title="Inbox">
+    <OmniLayout title="Inbox" fullHeight>
       <div className="flex h-full overflow-hidden">
         {/* Conversation list */}
         <div className="flex w-80 flex-col border-r border-border bg-card/30 shrink-0">
