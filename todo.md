@@ -123,3 +123,44 @@
 - [x] TypeScript sem erros (0 erros de compilação)
 - [x] Servidor rodando corretamente (HTTP 200)
 - [x] Checkpoint final e entrega
+
+## Fase 11: Estrutura Organizacional — Lei Complementar nº 010/2025
+
+### Banco de Dados
+- [x] Tabela: orgUnits (unidades organizacionais hierárquicas com parentId, sigla, nível, tipo)
+- [x] Tabela: positions (cargos com nível hierárquico, tipo de provimento, unidade vinculada)
+- [x] Tabela: userAllocations (lotações de usuários: unidade, cargo, perfil, datas)
+- [x] Tabela: orgInvites (convites por e-mail com status, token, prazo, unidade de destino)
+- [x] Tabela: allocationHistory (histórico de movimentação funcional)
+
+### Seed de Dados (Lei 010/2025)
+- [x] 17 órgãos principais com siglas (GABPRE, GABVICE, PGM, CGM, SCC, SEPLAN, SEFIN, SEMAS, SEDEC, SECULT, SEMAGRI, SEDUC, SEINFRA, SESAU, SEMAM, SETRANS, SEMOB)
+- [x] Subestruturas do Gabinete do Prefeito (Diretoria de Redação Oficial, Comunicação, Projetos Estratégicos, Junta de Serviço Militar)
+- [x] Subestruturas da PGM, CGM, SCC, SEPLAN, SEFIN, SEMAS, SEDEC, SECULT, SEMAGRI
+- [x] Subestruturas da SEDUC, SEINFRA, SESAU, SEMAM, SETRANS, SEMOB, GABVICE
+- [x] Cargos: Secretário, Secretário Executivo, Diretor, Coordenador, Gerente, Supervisor, Chefe, Assessor Técnico, Assessor Especial
+
+### Backend
+- [x] Router: orgUnits (CRUD, árvore hierárquica, busca por nível/tipo/secretaria)
+- [x] Router: positions (CRUD cargos, vinculação a unidades)
+- [x] Router: userAllocations (alocar/desalocar usuário, histórico, múltiplas unidades)
+- [x] Router: orgInvites (criar convite, reenviar, cancelar, aceitar via token)
+- [x] Router: orgChart (dados do organograma para visualização)
+
+### Interface
+- [x] Página: Estrutura Organizacional com árvore hierárquica navegável e organograma visual
+- [x] Componente: OrgTree — árvore interativa com expand/collapse por nível
+- [x] Componente: OrgChartVisual — organograma visual com cards por unidade
+- [x] Visualização por secretaria, nível hierárquico e unidade
+- [x] Ação "Adicionar Usuário" em cada nó da árvore hierárquica
+- [x] Formulário de convite por e-mail vinculado ao nível hierárquico
+- [x] Página: Gestão de Cargos (CRUD com nível, tipo, unidade)
+- [x] Página: Alocação de Usuários (lotação, cargo, perfil, datas, histórico)
+- [x] Página: Convites Pendentes (status, reenvio, cancelamento)
+- [x] Sidebar: novo grupo "Estrutura Organizacional" com 3 itens (admin only)
+
+## Fase 12: Testes Finais e Entrega
+- [x] 60 testes automatizados passando (5 arquivos de teste)
+- [x] TypeScript sem erros (0 erros de compilação)
+- [x] Servidor rodando corretamente (HTTP 200)
+- [x] Checkpoint final e entrega

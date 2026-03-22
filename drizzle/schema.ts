@@ -660,3 +660,129 @@ export const searchIndex = mysqlTable("searchIndex", {
 
 export type SearchIndex = typeof searchIndex.$inferSelect;
 export type InsertSearchIndex = typeof searchIndex.$inferInsert;
+
+// ─── Organizational Units (Estrutura Organizacional — Lei 010/2025) ───────────
+export const orgUnits = mysqlTable("orgUnits", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 512 }).notNull(),
+  acronym: varchar("acronym", { length: 32 }),
+  type: mysqlEnum("type", [
+    "prefeitura", "gabinete", "procuradoria", "controladoria", "secretaria",
+    "superintendencia", "secretaria_executiva", "diretoria", "departamento",
+    "coordenacao", "gerencia", "supervisao", "secao", "setor", "nucleo",
+    "assessoria", "unidade", "junta", "tesouraria", "ouvidoria"
+  ]).notNull().default("setor"),
+  level: int("level").notNull().default(1),
+  parentId: int("parentId"),
+  managerId: int("managerId"),
+  description: text("description"),
+  legalBasis: varchar("legalBasis", { length: 255 }),
+  isActive: boolean("isActive").default(true).notNull(),
+  isSeeded: boolean("isSeeded").default(false).notNull(),
+  sortOrder: int("sortOrder").default(0),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  parentIdx: index("orgUnit_parent_idx").on(table.parentId),
+  levelIdx: index("orgUnit_level_idx").on(table.level),
+  typeIdx: index("orgUnit_type_idx").on(table.type),
+}));
+
+export type OrgUnit = typeof orgUnits.$inferSelect;
+export type InsertOrgUnit = typeof orgUnits.$inferInsert;
+
+// ─── Positions (Cargos) ───────────────────────────────────────────────────────
+export const positions = mysqlTable("positions", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  code: varchar("code", { length: 64 }),
+  orgUnitId: int("orgUnitId"),
+  level: mysqlEnum("level", [
+    "secretario", "secretario_executivo", "diretor", "coordenador",
+    "gerente", "supervisor", "chefe", "assessor_tecnico", "assessor_especial", "outro"
+  ]).notNull().default("outro"),
+  provisionType: mysqlEnum("provisionType", ["comissao", "efetivo", "designacao", "contrato"]).default("comissao"),
+  canSign: boolean("canSign").default(false).notNull(),
+  canApprove: boolean("canApprove").default(false).notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
+  isSeeded: boolean("isSeeded").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Position = typeof positions.$inferSelect;
+export type InsertPosition = typeof positions.$inferInsert;
+
+// ─── User Allocations (Lotações) ──────────────────────────────────────────────
+export const userAllocations = mysqlTable("userAllocations", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  orgUnitId: int("orgUnitId").notNull(),
+  positionId: int("positionId"),
+  isPrimary: boolean("isPrimary").default(true).notNull(),
+  systemProfile: mysqlEnum("systemProfile", [
+    "citizen", "attendant", "sector_server", "analyst", "manager", "authority", "admin"
+  ]).default("attendant").notNull(),
+  startDate: timestamp("startDate").defaultNow().notNull(),
+  endDate: timestamp("endDate"),
+  notes: text("notes"),
+  allocatedBy: int("allocatedBy"),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  userIdx: index("alloc_user_idx").on(table.userId),
+  unitIdx: index("alloc_unit_idx").on(table.orgUnitId),
+}));
+
+export type UserAllocation = typeof userAllocations.$inferSelect;
+export type InsertUserAllocation = typeof userAllocations.$inferInsert;
+
+// ─── Allocation History (Histórico de Movimentação) ───────────────────────────
+export const allocationHistory = mysqlTable("allocationHistory", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  fromOrgUnitId: int("fromOrgUnitId"),
+  toOrgUnitId: int("toOrgUnitId"),
+  fromPositionId: int("fromPositionId"),
+  toPositionId: int("toPositionId"),
+  changeType: mysqlEnum("changeType", ["allocation", "transfer", "promotion", "removal", "invite_accepted"]).notNull(),
+  changedBy: int("changedBy"),
+  notes: text("notes"),
+  ipAddress: varchar("ipAddress", { length: 64 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({
+  userIdx: index("allocHist_user_idx").on(table.userId),
+}));
+
+export type AllocationHistory = typeof allocationHistory.$inferSelect;
+export type InsertAllocationHistory = typeof allocationHistory.$inferInsert;
+
+// ─── Org Invites (Convites por E-mail) ────────────────────────────────────────
+export const orgInvites = mysqlTable("orgInvites", {
+  id: int("id").autoincrement().primaryKey(),
+  token: varchar("token", { length: 128 }).notNull().unique(),
+  email: varchar("email", { length: 320 }).notNull(),
+  name: varchar("name", { length: 255 }),
+  orgUnitId: int("orgUnitId").notNull(),
+  positionId: int("positionId"),
+  systemProfile: mysqlEnum("systemProfile", [
+    "citizen", "attendant", "sector_server", "analyst", "manager", "authority", "admin"
+  ]).default("attendant").notNull(),
+  status: mysqlEnum("status", ["pending", "accepted", "expired", "cancelled"]).default("pending").notNull(),
+  invitedBy: int("invitedBy").notNull(),
+  acceptedBy: int("acceptedBy"),
+  notes: text("notes"),
+  expiresAt: timestamp("expiresAt"),
+  acceptedAt: timestamp("acceptedAt"),
+  acceptedIp: varchar("acceptedIp", { length: 64 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  tokenIdx: uniqueIndex("invite_token_idx").on(table.token),
+  emailIdx: index("invite_email_idx").on(table.email),
+  unitIdx: index("invite_unit_idx").on(table.orgUnitId),
+}));
+
+export type OrgInvite = typeof orgInvites.$inferSelect;
+export type InsertOrgInvite = typeof orgInvites.$inferInsert;

@@ -29,6 +29,9 @@ import InstitutionalSettings from "./pages/InstitutionalSettings";
 import OnlineSessions from "./pages/OnlineSessions";
 import ContextHelpAdmin from "./pages/ContextHelpAdmin";
 import AttachmentsManager from "./pages/AttachmentsManager";
+import OrgStructure from "./pages/OrgStructure";
+import Positions from "./pages/Positions";
+import OrgInvites from "./pages/OrgInvites";
 
 function ProtocolDetailWrapper() {
   const params = useParams<{ id: string }>();
@@ -73,7 +76,10 @@ function Router() {
       <Route path={"/institutional"} component={InstitutionalSettings} />
       <Route path={"/online-sessions"} component={OnlineSessions} />
       <Route path={"/context-help"} component={ContextHelpAdmin} />
-
+      {/* Estrutura Organizacional */}
+      <Route path={"/org-structure"} component={OrgStructure} />
+      <Route path={"/positions"} component={Positions} />
+      <Route path={"/org-invites"} component={OrgInvites} />
       {/* Administração */}
       <Route path={"/reports"} component={Reports} />
       <Route path={"/agents"} component={Agents} />

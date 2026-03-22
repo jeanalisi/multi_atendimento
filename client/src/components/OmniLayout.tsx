@@ -6,14 +6,17 @@ import {
   BarChart3,
   Bell,
   BookOpen,
+  Briefcase,
   Building2,
   ClipboardList,
   FileText,
   FormInput,
+  GitBranch,
   HelpCircle,
   Inbox,
   LayoutDashboard,
   LogOut,
+  Mail,
   MessageSquare,
   Monitor,
   Moon,
@@ -83,6 +86,12 @@ const advancedItems = [
   { href: "/institutional", icon: Building2, label: "Config. Institucional" },
   { href: "/online-sessions", icon: Monitor, label: "Sessões Online" },
   { href: "/context-help", icon: HelpCircle, label: "Ajuda Contextual" },
+];
+
+const orgItems = [
+  { href: "/org-structure", icon: GitBranch, label: "Estrutura Organizacional" },
+  { href: "/positions", icon: Briefcase, label: "Cargos e Funções" },
+  { href: "/org-invites", icon: Mail, label: "Convites e Lotações" },
 ];
 
 interface OmniLayoutProps {
@@ -215,6 +224,10 @@ export default function OmniLayout({ children, title }: OmniLayoutProps) {
                 ))}
                 <Separator className="my-1.5 w-8 bg-sidebar-border" />
                 {advancedItems.map((item) => (
+                  <NavItem key={item.href} {...item} isActive={location.startsWith(item.href)} />
+                ))}
+                <Separator className="my-1.5 w-8 bg-sidebar-border" />
+                {orgItems.map((item) => (
                   <NavItem key={item.href} {...item} isActive={location.startsWith(item.href)} />
                 ))}
               </>

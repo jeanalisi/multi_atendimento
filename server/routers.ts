@@ -49,6 +49,7 @@ import {
 import { testImapConnection, testSmtpConnection, sendEmail, fetchEmails } from "./email";
 import { getIo } from "./_core/socketio";
 import { caiusRouter } from "./routers-caius";
+import { orgUnitsRouter, positionsRouter, userAllocationsRouter, orgInvitesRouter } from "./routers-org";
 import {
   serviceTypesRouter,
   formTemplatesRouter,
@@ -417,6 +418,11 @@ export const appRouter = router({
   globalSearch: globalSearchRouter,
   userRegistration: userRegistrationRouter,
 
+  // ── Org Structure ──────────────────────────────────────────────────────────
+  orgUnits: orgUnitsRouter,
+  positions: positionsRouter,
+  userAllocations: userAllocationsRouter,
+  orgInvites: orgInvitesRouter,
   // ── Analytics ─────────────────────────────────────────────────────────────
   analytics: router({
     overview: protectedProcedure
