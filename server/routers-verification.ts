@@ -525,10 +525,10 @@ export const verificationRouter = router({
       currentPage.drawText("CHANCELA DE AUTENTICIDADE", {
         x: MARGIN, y: PAGE_H - 32, size: 14, font: fontBold, color: white,
       });
-      currentPage.drawText("Documento Assinado Eletronicamente — CAIUS", {
+      currentPage.drawText("Documento Assinado Eletronicamente - CAIUS", {
         x: MARGIN, y: PAGE_H - 50, size: 9, font: fontRegular, color: rgb(0.8, 0.88, 1.0),
       });
-      const orgText = doc.issuingUnit ?? "CAIUS — Plataforma Institucional";
+      const orgText = doc.issuingUnit ?? "CAIUS - Plataforma Institucional";
       const orgLines = wrapText(orgText, fontRegular, 7.5, 180);
       orgLines.forEach((line, i) => {
         const lw = fontRegular.widthOfTextAtSize(line, 7.5);
@@ -566,7 +566,7 @@ export const verificationRouter = router({
         ensureSpace(32);
         currentPage.drawText(label.toUpperCase(), { x, y, size: 6.5, font: fontBold, color: gray });
         y -= 12;
-        const valLines = wrapText(value || "—", fontRegular, 9, colWidth);
+        const valLines = wrapText(value || "-", fontRegular, 9, colWidth);
         for (const vl of valLines) {
           ensureSpace(14);
           currentPage.drawText(vl, { x, y, size: 9, font: fontRegular, color: darkGray });
@@ -579,26 +579,26 @@ export const verificationRouter = router({
       drawField2("Tipo de Documento", doc.documentType, col1);
       const afterCol1_1 = y;
       y = savedY1;
-      drawField2("Unidade Emissora", doc.issuingUnit ?? "—", col2);
+      drawField2("Unidade Emissora", doc.issuingUnit ?? "-", col2);
       y = Math.min(afterCol1_1, y) - 6;
 
       // Linha 2: NUP + Número
       const savedY2 = y;
-      drawField2("NUP", doc.nup ?? "—", col1);
+      drawField2("NUP", doc.nup ?? "-", col1);
       const afterCol1_2 = y;
       y = savedY2;
-      drawField2("Número do Documento", doc.documentNumber ?? "—", col2);
+      drawField2("Numero do Documento", doc.documentNumber ?? "-", col2);
       y = Math.min(afterCol1_2, y) - 6;
 
       // Linha 3: Data + Status
       const issuedAtStr = doc.issuedAt
         ? new Date(doc.issuedAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })
-        : "—";
+        : "-";
       const savedY3 = y;
       drawField2("Data de Emissão", issuedAtStr, col1);
       const afterCol1_3 = y;
       y = savedY3;
-      const statusLabel = doc.status === "authentic" ? "✅ Autêntico" : doc.status;
+      const statusLabel = doc.status === "authentic" ? "AUTENTICO" : (doc.status ?? "Desconhecido");
       drawField2("Status", statusLabel, col2);
       y = Math.min(afterCol1_3, y) - 10;
 
@@ -651,7 +651,7 @@ export const verificationRouter = router({
           y -= 14;
 
           if (hasRoleUnit) {
-            const roleUnit = [sig.signerRole, sig.signerUnit].filter(Boolean).join(" — ");
+            const roleUnit = [sig.signerRole, sig.signerUnit].filter(Boolean).join(" - ");
             const ruLines = wrapText(roleUnit, fontRegular, 8, CONTENT_W - 20);
             for (const rl of ruLines) {
               currentPage.drawText(rl, { x: sigX, y, size: 8, font: fontRegular, color: gray });
@@ -659,7 +659,7 @@ export const verificationRouter = router({
             }
           }
 
-          const sigDate = sig.signedAt ? new Date(sig.signedAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "—";
+          const sigDate = sig.signedAt ? new Date(sig.signedAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "-";
           currentPage.drawText(`Assinado em: ${sigDate}`, { x: sigX, y, size: 7.5, font: fontRegular, color: gray });
           y -= 12;
 

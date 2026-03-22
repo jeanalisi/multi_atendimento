@@ -1,0 +1,9 @@
+{
+  "query": "ALTER TABLE `serviceTypes` ADD `serviceMode` enum('form','external') DEFAULT 'form' NOT NULL;\nALTER TABLE `serviceTypes` ADD `externalUrl` varchar(2048);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 6L37jFcA6BFgjQd.root --database Ve5tpunFZPuSgjyp4PhWYh --execute ALTER TABLE `serviceTypes` ADD `serviceMode` enum('form','external') DEFAULT 'form' NOT NULL;\nALTER TABLE `serviceTypes` ADD `externalUrl` varchar(2048);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1326
+}

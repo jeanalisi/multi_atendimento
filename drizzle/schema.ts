@@ -464,6 +464,8 @@ export const serviceTypes = mysqlTable("serviceTypes", {
   importantNotes: text("importantNotes"),
   faq: json("faq"),
   formTemplateId: int("formTemplateId"),
+  serviceMode: mysqlEnum("serviceMode", ["form", "external"]).default("form").notNull(),
+  externalUrl: varchar("externalUrl", { length: 2048 }),
   createdById: int("createdById"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),

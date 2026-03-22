@@ -70,11 +70,14 @@ type ServiceTypeForm = {
   secrecyLevel: "public" | "restricted" | "confidential" | "secret";
   requiresApproval: boolean; canConvertToProcess: boolean; allowPublicConsult: boolean;
   requiresSelfie: boolean; requiresGeolocation: boolean; requiresStrongAuth: boolean;
+  serviceMode: "form" | "external";
+  externalUrl: string;
 };
 const defaultForm: ServiceTypeForm = {
   name: "", description: "", category: "", code: "", slaResponseHours: "", slaConclusionHours: "",
   secrecyLevel: "public", requiresApproval: false, canConvertToProcess: false, allowPublicConsult: true,
   requiresSelfie: false, requiresGeolocation: false, requiresStrongAuth: false,
+  serviceMode: "form", externalUrl: "",
 };
 
 type PublicationForm = {
@@ -208,6 +211,8 @@ export default function ServiceTypes() {
       canConvertToProcess: st.canConvertToProcess ?? false, allowPublicConsult: st.allowPublicConsult ?? true,
       requiresSelfie: st.requiresSelfie ?? false, requiresGeolocation: st.requiresGeolocation ?? false,
       requiresStrongAuth: st.requiresStrongAuth ?? false,
+      serviceMode: (st as any).serviceMode ?? "form",
+      externalUrl: (st as any).externalUrl ?? "",
     });
     setOpen(true);
   }
@@ -680,6 +685,28 @@ export default function ServiceTypes() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="col-span-2 space-y-1.5">
+                <Label>Modo de Atendimento</Label>
+                <Select value={form.serviceMode} onValueChange={v => setForm(f => ({ ...f, serviceMode: v as any, externalUrl: v === "form" ? "" : f.externalUrl }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="form">Formulário — cidadão preenche formulário no sistema</SelectItem>
+                    <SelectItem value="external">Externo — redireciona para link externo</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {form.serviceMode === "external" && (
+                <div className="col-span-2 space-y-1.5">
+                  <Label>URL de Destino *</Label>
+                  <Input
+                    value={form.externalUrl}
+                    onChange={e => setForm(f => ({ ...f, externalUrl: e.target.value }))}
+                    placeholder="https://exemplo.gov.br/servico"
+                    type="url"
+                  />
+                  <p className="text-xs text-muted-foreground">O cidadão será redirecionado para este endereço ao acessar o serviço na Central do Cidadão.</p>
+                </div>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-3">
               {[

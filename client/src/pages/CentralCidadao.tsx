@@ -983,17 +983,31 @@ export default function CentralCidadao() {
             )}
 
             {/* CTA */}
-            <div className="p-4 rounded-xl bg-blue-700 text-white">
-              <h4 className="font-semibold mb-1">Pronto para solicitar?</h4>
-              <p className="text-sm text-blue-100 mb-3">
-                Preencha o formulário online e receba o número de protocolo (NUP) imediatamente.
-              </p>
-              <a href={`/servico/${selectedService?.id}`}>
-                <button className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white text-blue-700 text-sm font-semibold hover:bg-blue-50 transition-colors">
-                  Iniciar Solicitação <ExternalLink className="w-3.5 h-3.5" />
-                </button>
-              </a>
-            </div>
+            {selectedService?.serviceMode === "external" && selectedService?.externalUrl ? (
+              <div className="p-4 rounded-xl bg-emerald-700 text-white">
+                <h4 className="font-semibold mb-1">Serviço Externo</h4>
+                <p className="text-sm text-emerald-100 mb-3">
+                  Este serviço é prestado em um portal externo. Você será redirecionado ao clicar no botão abaixo.
+                </p>
+                <a href={selectedService.externalUrl} target="_blank" rel="noopener noreferrer">
+                  <button className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white text-emerald-700 text-sm font-semibold hover:bg-emerald-50 transition-colors">
+                    Acessar Serviço Externo <ExternalLink className="w-3.5 h-3.5" />
+                  </button>
+                </a>
+              </div>
+            ) : (
+              <div className="p-4 rounded-xl bg-blue-700 text-white">
+                <h4 className="font-semibold mb-1">Pronto para solicitar?</h4>
+                <p className="text-sm text-blue-100 mb-3">
+                  Preencha o formulário online e receba o número de protocolo (NUP) imediatamente.
+                </p>
+                <a href={`/servico/${selectedService?.id}`}>
+                  <button className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white text-blue-700 text-sm font-semibold hover:bg-blue-50 transition-colors">
+                    Iniciar Solicitação <ExternalLink className="w-3.5 h-3.5" />
+                  </button>
+                </a>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>

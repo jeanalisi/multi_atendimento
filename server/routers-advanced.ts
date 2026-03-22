@@ -95,6 +95,8 @@ export const serviceTypesRouter = router({
       requiresStrongAuth: z.boolean().default(false),
       allowedProfiles: z.array(z.string()).optional(),
       flowConfig: z.any().optional(),
+      serviceMode: z.enum(["form", "external"]).default("form"),
+      externalUrl: z.string().optional(),
     }))
     .mutation(({ input, ctx }) => createServiceType({ ...input, createdById: ctx.user.id })),
 
@@ -114,6 +116,8 @@ export const serviceTypesRouter = router({
       isActive: z.boolean().optional(),
       allowedProfiles: z.array(z.string()).optional(),
       flowConfig: z.any().optional(),
+      serviceMode: z.enum(["form", "external"]).optional(),
+      externalUrl: z.string().optional().nullable(),
     }))
     .mutation(({ input }) => {
       const { id, ...data } = input;

@@ -701,3 +701,13 @@
 - [x] Inserir rodapé de referência discreta em todas as páginas do PDF original (upload)
 - [x] Rodapé: "Documento assinado no CAIUS | NUP: XXXXX | Verificação na página final ou portal"
 - [x] PDF consolidado final: original com rodapés + página(s) de chancela completa
+
+## Correções: WhatsApp e Tipos de Atendimento Externo
+- [x] Corrigir envio real de mensagens WhatsApp via Baileys (WhatsAppConnector conectado ao Baileys + auto-reconexão no startup)
+- [x] Tipos de atendimento: opção "Externo" com campo de URL de redirecionamento adicionada
+- [x] Central do Cidadão: botão de serviço externo abre link em nova aba em vez de formulário
+
+## Correção: Erro WinAnsi no PDF e Tipo Externo
+- [x] Remover emojis da geração da chancela PDF (WinAnsi não suporta Unicode/emojis)
+- [x] Adicionar opção "Externo" nos tipos de atendimento com campo de URL de redirecionamento
+- [x] Corrigir WhatsApp: auto-reconexão ao iniciar servidor + WhatsAppConnector conectado ao Baileys real
