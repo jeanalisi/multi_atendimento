@@ -344,3 +344,35 @@
 - [x] Consulta de andamento e assinatura
 - [x] Histórico básico conforme permissão
 - [x] Anexos e respostas quando permitidos
+
+## Fase 20: Reestruturação da Gestão Pública e Experiência do Cidadão [CONCLUÍDO]
+
+### Backend
+- [x] Adicionar campo isPublic, publicationStatus (draft/published/inactive/restricted) e subjects em serviceTypes
+- [x] Tabela: serviceSubjects (assuntos por tipo de atendimento com isPublic, formulário vinculado, documentos, SLA)
+- [x] Procedure: serviceTypes.publish / serviceTypes.unpublish
+- [x] Procedure: serviceSubjects.list / create / update / delete
+- [x] Procedure pública: cidadao.getServiceDetail (tipo + assuntos públicos + campos + documentos)
+- [x] Procedure pública: cidadao.submitRequest (criar protocolo/ouvidoria a partir do formulário do cidadão)
+
+### Tela Administrativa — Gestão Pública
+- [x] Reconstruir página ServiceTypes.tsx com listagem em tabela (nome, categoria, status, isPublic, setor, formulário, assuntos, publicado)
+- [x] Botão "Novo" abre modal/painel com seleção de tipo a criar
+- [x] Ações por linha: editar, visualizar, duplicar, publicar/despublicar, desativar
+- [x] Aba "Assuntos" dentro de cada tipo de atendimento
+- [x] Aba "Formulário" para configurar campos por assunto
+- [x] Aba "Publicação" com controle de visibilidade (público/interno/restrito/rascunho)
+- [x] Diferenciação visual clara: área interna = tabela, filtros, ações administrativas
+
+### Tela Pública — Central do Cidadão
+- [x] Fluxo completo: buscar → categoria → lista de serviços → descrição → solicitar → assunto → formulário → NUP
+- [x] Página de descrição do serviço (/servico/:id) com linguagem cidadã
+- [x] Descrição do serviço: nome, descrição, finalidade, quem pode solicitar, documentos, prazo, custo, setor, canal
+- [x] Botão "Solicitar" na descrição abre o formulário dinâmico
+- [x] Formulário dinâmico do cidadão com campos configurados pelo admin
+- [x] Seleção de assunto antes do formulário (quando há múltiplos assuntos)
+- [x] Upload de documentos obrigatórios/complementares
+- [x] Envio gera NUP e exibe confirmação com link de acompanhamento
+- [x] Diferenciação visual: área pública = cards, busca, linguagem cidadã, sem menus administrativos
+- [x] TypeScript: 0 erros de compilação
+- [x] 73 testes passando

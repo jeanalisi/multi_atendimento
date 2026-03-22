@@ -54,6 +54,7 @@ import { caiusRouter } from "./routers-caius";
 import { orgUnitsRouter, positionsRouter, userAllocationsRouter, orgInvitesRouter } from "./routers-org";
 import {
   serviceTypesRouter,
+  serviceSubjectsRouter,
   formTemplatesRouter,
   attachmentsRouter,
   contextHelpRouter,
@@ -421,6 +422,7 @@ export const appRouter = router({
   caius: caiusRouter,
   // ── Advanced Modules ──────────────────────────────────────────────────────
   serviceTypes: serviceTypesRouter,
+  serviceSubjects: serviceSubjectsRouter,
   formTemplates: formTemplatesRouter,
   attachments: attachmentsRouter,
   contextHelp: contextHelpRouter,

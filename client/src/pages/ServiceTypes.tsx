@@ -18,7 +18,8 @@ import { toast } from "sonner";
 import {
   Plus, Pencil, Trash2, Settings2, Clock, Shield, Camera, MapPin,
   CheckCircle2, XCircle, FileText, FormInput, FileCheck, ChevronRight,
-  GripVertical, X, CircleDot, Circle, ArrowLeft,
+  GripVertical, X, CircleDot, Circle, ArrowLeft, Globe, EyeOff, Tag,
+  Info, Users, DollarSign, Building2, MessageSquare,
 } from "lucide-react";
 
 const secrecyLabels: Record<string, { label: string; color: string }> = {
@@ -26,6 +27,13 @@ const secrecyLabels: Record<string, { label: string; color: string }> = {
   restricted: { label: "Restrito", color: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" },
   confidential: { label: "Confidencial", color: "bg-orange-500/15 text-orange-400 border-orange-500/30" },
   secret: { label: "Sigiloso", color: "bg-red-500/15 text-red-400 border-red-500/30" },
+};
+
+const pubStatusLabels: Record<string, { label: string; color: string }> = {
+  draft: { label: "Rascunho", color: "bg-zinc-500/15 text-zinc-400 border-zinc-500/30" },
+  published: { label: "Publicado", color: "bg-green-500/15 text-green-400 border-green-500/30" },
+  inactive: { label: "Inativo", color: "bg-red-500/15 text-red-400 border-red-500/30" },
+  restricted: { label: "Restrito", color: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" },
 };
 
 const FIELD_TYPES = [
@@ -69,18 +77,48 @@ const defaultForm: ServiceTypeForm = {
   requiresSelfie: false, requiresGeolocation: false, requiresStrongAuth: false,
 };
 
+type PublicationForm = {
+  purpose: string; whoCanRequest: string; cost: string;
+  formOfService: string; responseChannel: string; importantNotes: string;
+};
+const defaultPubForm: PublicationForm = {
+  purpose: "", whoCanRequest: "", cost: "Gratuito", formOfService: "Online", responseChannel: "E-mail e Portal", importantNotes: "",
+};
+
+type SubjectForm = {
+  name: string; description: string; code: string; isPublic: boolean;
+  slaResponseHours: string; slaConclusionHours: string; importantNotes: string;
+};
+const defaultSubjectForm: SubjectForm = {
+  name: "", description: "", code: "", isPublic: true,
+  slaResponseHours: "", slaConclusionHours: "", importantNotes: "",
+};
+
 export default function ServiceTypes() {
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState<ServiceTypeForm>(defaultForm);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState("fields");
+
+  // Fields
   const [showFieldForm, setShowFieldForm] = useState(false);
   const [editingField, setEditingField] = useState<any>(null);
   const [fieldForm, setFieldForm] = useState({ label: "", fieldType: "text", requirement: "optional", placeholder: "", helpText: "" });
+
+  // Documents
   const [showDocForm, setShowDocForm] = useState(false);
   const [editingDoc, setEditingDoc] = useState<any>(null);
   const [docForm, setDocForm] = useState({ name: "", description: "", requirement: "required", acceptedFormats: "pdf,jpg,png", maxSizeMb: 10 });
+
+  // Subjects
+  const [showSubjectForm, setShowSubjectForm] = useState(false);
+  const [editingSubject, setEditingSubject] = useState<any>(null);
+  const [subjectForm, setSubjectForm] = useState<SubjectForm>(defaultSubjectForm);
+
+  // Publication
+  const [pubForm, setPubForm] = useState<PublicationForm>(defaultPubForm);
+  const [savingPub, setSavingPub] = useState(false);
 
   const utils = trpc.useUtils();
   const { data: serviceTypes = [], refetch } = trpc.serviceTypes.list.useQuery({});
@@ -90,9 +128,13 @@ export default function ServiceTypes() {
   const { data: documents = [] } = trpc.serviceTypeDocuments.list.useQuery(
     { serviceTypeId: selectedId! }, { enabled: !!selectedId }
   );
+  const { data: subjects = [] } = trpc.serviceSubjects.list.useQuery(
+    { serviceTypeId: selectedId! }, { enabled: !!selectedId }
+  );
 
-  const selectedType = serviceTypes.find((s: any) => s.id === selectedId);
+  const selectedType = (serviceTypes as any[]).find((s: any) => s.id === selectedId);
 
+  // Service type mutations
   const createMutation = trpc.serviceTypes.create.useMutation({
     onSuccess: () => { toast.success("Tipo criado!"); refetch(); setOpen(false); setForm(defaultForm); },
     onError: (e) => toast.error(e.message),
@@ -102,10 +144,18 @@ export default function ServiceTypes() {
     onError: (e) => toast.error(e.message),
   });
   const deleteMutation = trpc.serviceTypes.delete.useMutation({
-    onSuccess: () => { toast.success("Tipo removido."); refetch(); if (selectedId === editId) setSelectedId(null); },
+    onSuccess: () => { toast.success("Tipo removido."); refetch(); setSelectedId(null); },
+    onError: (e) => toast.error(e.message),
+  });
+  const publishMutation = trpc.cidadao.publish.useMutation({
+    onSuccess: (_, vars) => {
+      toast.success(vars.isPublic ? "Serviço publicado na Central do Cidadão!" : "Serviço despublicado.");
+      refetch();
+    },
     onError: (e) => toast.error(e.message),
   });
 
+  // Fields mutations
   const createField = trpc.serviceTypeFields.create.useMutation({
     onSuccess: () => { utils.serviceTypeFields.list.invalidate({ serviceTypeId: selectedId! }); setShowFieldForm(false); setEditingField(null); toast.success("Campo adicionado"); },
     onError: (e) => toast.error(e.message),
@@ -117,6 +167,7 @@ export default function ServiceTypes() {
     onSuccess: () => utils.serviceTypeFields.list.invalidate({ serviceTypeId: selectedId! }),
   });
 
+  // Documents mutations
   const createDoc = trpc.serviceTypeDocuments.create.useMutation({
     onSuccess: () => { utils.serviceTypeDocuments.list.invalidate({ serviceTypeId: selectedId! }); setShowDocForm(false); setEditingDoc(null); toast.success("Documento adicionado"); },
     onError: (e) => toast.error(e.message),
@@ -128,14 +179,45 @@ export default function ServiceTypes() {
     onSuccess: () => utils.serviceTypeDocuments.list.invalidate({ serviceTypeId: selectedId! }),
   });
 
+  // Subjects mutations
+  const createSubject = trpc.serviceSubjects.create.useMutation({
+    onSuccess: () => { utils.serviceSubjects.list.invalidate({ serviceTypeId: selectedId! }); setShowSubjectForm(false); setEditingSubject(null); toast.success("Assunto adicionado"); },
+    onError: (e) => toast.error(e.message),
+  });
+  const updateSubject = trpc.serviceSubjects.update.useMutation({
+    onSuccess: () => { utils.serviceSubjects.list.invalidate({ serviceTypeId: selectedId! }); setShowSubjectForm(false); setEditingSubject(null); toast.success("Assunto atualizado"); },
+  });
+  const deleteSubject = trpc.serviceSubjects.delete.useMutation({
+    onSuccess: () => utils.serviceSubjects.list.invalidate({ serviceTypeId: selectedId! }),
+  });
+
+  // Publication update
+  const updatePubMutation = trpc.serviceTypes.update.useMutation({
+    onSuccess: () => { toast.success("Informações de publicação salvas!"); refetch(); setSavingPub(false); },
+    onError: (e) => { toast.error(e.message); setSavingPub(false); },
+  });
+
   function openCreate() { setEditId(null); setForm(defaultForm); setOpen(true); }
   function openEdit(st: any) {
     setEditId(st.id);
-    setForm({ name: st.name ?? "", description: st.description ?? "", category: st.category ?? "", code: st.code ?? "", slaResponseHours: st.slaResponseHours?.toString() ?? "", slaConclusionHours: st.slaConclusionHours?.toString() ?? "", secrecyLevel: st.secrecyLevel ?? "public", requiresApproval: st.requiresApproval ?? false, canConvertToProcess: st.canConvertToProcess ?? false, allowPublicConsult: st.allowPublicConsult ?? true, requiresSelfie: st.requiresSelfie ?? false, requiresGeolocation: st.requiresGeolocation ?? false, requiresStrongAuth: st.requiresStrongAuth ?? false });
+    setForm({
+      name: st.name ?? "", description: st.description ?? "", category: st.category ?? "",
+      code: st.code ?? "", slaResponseHours: st.slaResponseHours?.toString() ?? "",
+      slaConclusionHours: st.slaConclusionHours?.toString() ?? "",
+      secrecyLevel: st.secrecyLevel ?? "public", requiresApproval: st.requiresApproval ?? false,
+      canConvertToProcess: st.canConvertToProcess ?? false, allowPublicConsult: st.allowPublicConsult ?? true,
+      requiresSelfie: st.requiresSelfie ?? false, requiresGeolocation: st.requiresGeolocation ?? false,
+      requiresStrongAuth: st.requiresStrongAuth ?? false,
+    });
     setOpen(true);
   }
   function handleSubmit() {
-    const payload = { ...form, slaResponseHours: form.slaResponseHours ? Number(form.slaResponseHours) : undefined, slaConclusionHours: form.slaConclusionHours ? Number(form.slaConclusionHours) : undefined, code: form.code || undefined, category: form.category || undefined, description: form.description || undefined };
+    const payload = {
+      ...form,
+      slaResponseHours: form.slaResponseHours ? Number(form.slaResponseHours) : undefined,
+      slaConclusionHours: form.slaConclusionHours ? Number(form.slaConclusionHours) : undefined,
+      code: form.code || undefined, category: form.category || undefined, description: form.description || undefined,
+    };
     if (editId) updateMutation.mutate({ id: editId, ...payload });
     else createMutation.mutate(payload);
   }
@@ -150,11 +232,62 @@ export default function ServiceTypes() {
     if (editingDoc) updateDoc.mutate({ id: editingDoc.id, name: docForm.name, description: docForm.description || undefined, requirement: docForm.requirement as any, acceptedFormats: docForm.acceptedFormats, maxSizeMb: docForm.maxSizeMb });
     else createDoc.mutate({ serviceTypeId: selectedId, name: docForm.name, description: docForm.description || undefined, requirement: docForm.requirement as any, acceptedFormats: docForm.acceptedFormats, maxSizeMb: docForm.maxSizeMb });
   }
+  function handleSaveSubject() {
+    if (!selectedId) return;
+    const payload = {
+      serviceTypeId: selectedId,
+      name: subjectForm.name,
+      description: subjectForm.description || undefined,
+      code: subjectForm.code || undefined,
+      isPublic: subjectForm.isPublic,
+      slaResponseHours: subjectForm.slaResponseHours ? Number(subjectForm.slaResponseHours) : undefined,
+      slaConclusionHours: subjectForm.slaConclusionHours ? Number(subjectForm.slaConclusionHours) : undefined,
+      importantNotes: subjectForm.importantNotes || undefined,
+    };
+    if (editingSubject) updateSubject.mutate({ id: editingSubject.id, ...payload });
+    else createSubject.mutate(payload);
+  }
+  function handleSavePub() {
+    if (!selectedId) return;
+    setSavingPub(true);
+    updatePubMutation.mutate({
+      id: selectedId,
+      // @ts-ignore — extra fields added in migration
+      purpose: pubForm.purpose || undefined,
+      whoCanRequest: pubForm.whoCanRequest || undefined,
+      cost: pubForm.cost || undefined,
+      formOfService: pubForm.formOfService || undefined,
+      responseChannel: pubForm.responseChannel || undefined,
+      importantNotes: pubForm.importantNotes || undefined,
+    } as any);
+  }
+  function openSubjectEdit(s: any) {
+    setEditingSubject(s);
+    setSubjectForm({
+      name: s.name ?? "", description: s.description ?? "", code: s.code ?? "",
+      isPublic: s.isPublic ?? true,
+      slaResponseHours: s.slaResponseHours?.toString() ?? "",
+      slaConclusionHours: s.slaConclusionHours?.toString() ?? "",
+      importantNotes: s.importantNotes ?? "",
+    });
+    setShowSubjectForm(true);
+  }
+  function openDetail(st: any) {
+    setSelectedId(st.id);
+    setActiveTab("fields");
+    setPubForm({
+      purpose: (st as any).purpose ?? "",
+      whoCanRequest: (st as any).whoCanRequest ?? "",
+      cost: (st as any).cost ?? "Gratuito",
+      formOfService: (st as any).formOfService ?? "Online",
+      responseChannel: (st as any).responseChannel ?? "E-mail e Portal",
+      importantNotes: (st as any).importantNotes ?? "",
+    });
+  }
 
   return (
     <OmniLayout>
       {selectedId && selectedType ? (
-        /* ── Detail view: fields & documents ── */
         <div className="flex flex-col h-[calc(100vh-4rem)]">
           {/* Header */}
           <div className="p-5 border-b border-border/50 flex items-center gap-3">
@@ -162,29 +295,52 @@ export default function ServiceTypes() {
               <ArrowLeft className="w-4 h-4" />Voltar
             </Button>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-lg font-semibold text-foreground truncate">{selectedType.name}</h1>
                 {selectedType.code && <Badge variant="outline" className="font-mono text-xs">{selectedType.code}</Badge>}
                 <Badge className={`text-xs border ${secrecyLabels[selectedType.secrecyLevel]?.color ?? ""}`}>
                   <Shield className="w-3 h-3 mr-1" />{secrecyLabels[selectedType.secrecyLevel]?.label}
                 </Badge>
+                <Badge className={`text-xs border ${pubStatusLabels[(selectedType as any).publicationStatus ?? "draft"]?.color ?? ""}`}>
+                  <Globe className="w-3 h-3 mr-1" />{pubStatusLabels[(selectedType as any).publicationStatus ?? "draft"]?.label}
+                </Badge>
               </div>
               {selectedType.description && <p className="text-xs text-muted-foreground mt-0.5">{selectedType.description}</p>}
             </div>
-            <Button variant="outline" size="sm" onClick={() => openEdit(selectedType)}>
-              <Pencil className="w-3.5 h-3.5 mr-1.5" />Editar
-            </Button>
+            <div className="flex items-center gap-2 shrink-0">
+              {(selectedType as any).isPublic ? (
+                <Button size="sm" variant="outline" className="gap-1.5 text-red-400 border-red-400/30 hover:bg-red-500/10"
+                  onClick={() => publishMutation.mutate({ id: selectedType.id, isPublic: false })}>
+                  <EyeOff className="w-3.5 h-3.5" />Despublicar
+                </Button>
+              ) : (
+                <Button size="sm" className="gap-1.5 bg-green-600 hover:bg-green-700"
+                  onClick={() => publishMutation.mutate({ id: selectedType.id, isPublic: true })}>
+                  <Globe className="w-3.5 h-3.5" />Publicar
+                </Button>
+              )}
+              <Button variant="outline" size="sm" onClick={() => openEdit(selectedType)}>
+                <Pencil className="w-3.5 h-3.5 mr-1.5" />Editar
+              </Button>
+            </div>
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 overflow-hidden flex flex-col">
-            <TabsList className="mx-5 mt-4 w-fit">
+            <TabsList className="mx-5 mt-4 w-fit flex-wrap h-auto gap-1">
               <TabsTrigger value="fields">
-                <FormInput className="w-4 h-4 mr-1.5" />Campos do Formulário
-                {fields.length > 0 && <Badge className="ml-1.5 h-4 px-1 text-xs">{fields.length}</Badge>}
+                <FormInput className="w-4 h-4 mr-1.5" />Campos
+                {(fields as any[]).length > 0 && <Badge className="ml-1.5 h-4 px-1 text-xs">{(fields as any[]).length}</Badge>}
               </TabsTrigger>
               <TabsTrigger value="documents">
-                <FileCheck className="w-4 h-4 mr-1.5" />Documentos Exigidos
-                {documents.length > 0 && <Badge className="ml-1.5 h-4 px-1 text-xs">{documents.length}</Badge>}
+                <FileCheck className="w-4 h-4 mr-1.5" />Documentos
+                {(documents as any[]).length > 0 && <Badge className="ml-1.5 h-4 px-1 text-xs">{(documents as any[]).length}</Badge>}
+              </TabsTrigger>
+              <TabsTrigger value="subjects">
+                <Tag className="w-4 h-4 mr-1.5" />Assuntos
+                {(subjects as any[]).length > 0 && <Badge className="ml-1.5 h-4 px-1 text-xs">{(subjects as any[]).length}</Badge>}
+              </TabsTrigger>
+              <TabsTrigger value="publication">
+                <Globe className="w-4 h-4 mr-1.5" />Publicação
               </TabsTrigger>
             </TabsList>
 
@@ -200,21 +356,10 @@ export default function ServiceTypes() {
                     <Plus className="w-4 h-4 mr-1.5" />Adicionar Campo
                   </Button>
                 </div>
-
-                {fields.length > 0 && (
-                  <div className="flex items-center gap-4 p-3 rounded-lg bg-muted/20 border border-border/30 text-xs">
-                    <span className="text-muted-foreground">Resumo:</span>
-                    <span className="text-red-400 font-medium">{(fields as any[]).filter(f => f.requirement === "required").length} obrigatórios</span>
-                    <span className="text-amber-400 font-medium">{(fields as any[]).filter(f => f.requirement === "complementary").length} complementares</span>
-                    <span className="text-zinc-400 font-medium">{(fields as any[]).filter(f => f.requirement === "optional").length} opcionais</span>
-                  </div>
-                )}
-
-                {fields.length === 0 ? (
+                {(fields as any[]).length === 0 ? (
                   <div className="text-center py-12 text-muted-foreground border border-dashed border-border/50 rounded-lg">
                     <FormInput className="w-8 h-8 mx-auto mb-2 opacity-30" />
                     <p className="text-sm">Nenhum campo configurado</p>
-                    <p className="text-xs mt-1">Adicione campos obrigatórios e complementares para este serviço</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -230,9 +375,7 @@ export default function ServiceTypes() {
                             </span>
                           </div>
                           {(f.placeholder || f.helpText) && (
-                            <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                              {f.helpText || f.placeholder}
-                            </p>
+                            <p className="text-xs text-muted-foreground mt-0.5 truncate">{f.helpText || f.placeholder}</p>
                           )}
                         </div>
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -262,21 +405,10 @@ export default function ServiceTypes() {
                     <Plus className="w-4 h-4 mr-1.5" />Adicionar Documento
                   </Button>
                 </div>
-
-                {documents.length > 0 && (
-                  <div className="flex items-center gap-4 p-3 rounded-lg bg-muted/20 border border-border/30 text-xs">
-                    <span className="text-muted-foreground">Resumo:</span>
-                    <span className="text-red-400 font-medium">{(documents as any[]).filter(d => d.requirement === "required").length} obrigatórios</span>
-                    <span className="text-amber-400 font-medium">{(documents as any[]).filter(d => d.requirement === "complementary").length} complementares</span>
-                    <span className="text-zinc-400 font-medium">{(documents as any[]).filter(d => d.requirement === "optional").length} opcionais</span>
-                  </div>
-                )}
-
-                {documents.length === 0 ? (
+                {(documents as any[]).length === 0 ? (
                   <div className="text-center py-12 text-muted-foreground border border-dashed border-border/50 rounded-lg">
                     <FileCheck className="w-8 h-8 mx-auto mb-2 opacity-30" />
                     <p className="text-sm">Nenhum documento configurado</p>
-                    <p className="text-xs mt-1">Adicione documentos obrigatórios e complementares para este serviço</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -289,9 +421,7 @@ export default function ServiceTypes() {
                             <ReqBadge r={d.requirement} />
                           </div>
                           {d.description && <p className="text-xs text-muted-foreground mt-0.5">{d.description}</p>}
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            Formatos: {d.acceptedFormats} · Máx: {d.maxSizeMb}MB
-                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5">Formatos: {d.acceptedFormats} · Máx: {d.maxSizeMb}MB</p>
                         </div>
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => { setEditingDoc(d); setDocForm({ name: d.name, description: d.description ?? "", requirement: d.requirement, acceptedFormats: d.acceptedFormats ?? "pdf,jpg,png", maxSizeMb: d.maxSizeMb ?? 10 }); setShowDocForm(true); }}>
@@ -307,21 +437,142 @@ export default function ServiceTypes() {
                 )}
               </div>
             </TabsContent>
+
+            {/* SUBJECTS TAB */}
+            <TabsContent value="subjects" className="flex-1 overflow-y-auto p-5">
+              <div className="max-w-2xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-medium text-foreground">Assuntos</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">Defina os assuntos disponíveis para este tipo de atendimento (ex: reclamação, denúncia, requerimento)</p>
+                  </div>
+                  <Button size="sm" onClick={() => { setEditingSubject(null); setSubjectForm(defaultSubjectForm); setShowSubjectForm(true); }}>
+                    <Plus className="w-4 h-4 mr-1.5" />Adicionar Assunto
+                  </Button>
+                </div>
+                {(subjects as any[]).length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground border border-dashed border-border/50 rounded-lg">
+                    <Tag className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                    <p className="text-sm">Nenhum assunto configurado</p>
+                    <p className="text-xs mt-1">Adicione assuntos para que o cidadão possa especificar o motivo do atendimento</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {(subjects as any[]).map(s => (
+                      <div key={s.id} className="flex items-center gap-3 p-3 rounded-lg bg-card/50 border border-border/30 group hover:border-border/60 transition-colors">
+                        <Tag className="w-4 h-4 text-muted-foreground/60 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-medium text-sm text-foreground">{s.name}</span>
+                            {s.code && <Badge variant="outline" className="font-mono text-xs">{s.code}</Badge>}
+                            <Badge className={s.isPublic ? "bg-green-500/10 text-green-400 border-green-500/20 text-xs" : "bg-zinc-500/10 text-zinc-400 border-zinc-500/20 text-xs"}>
+                              {s.isPublic ? "Público" : "Interno"}
+                            </Badge>
+                          </div>
+                          {s.description && <p className="text-xs text-muted-foreground mt-0.5">{s.description}</p>}
+                          {(s.slaResponseHours || s.slaConclusionHours) && (
+                            <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {s.slaResponseHours && `Resposta: ${s.slaResponseHours}h`}
+                              {s.slaResponseHours && s.slaConclusionHours && " · "}
+                              {s.slaConclusionHours && `Conclusão: ${s.slaConclusionHours}h`}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openSubjectEdit(s)}>
+                            <Pencil className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => deleteSubject.mutate({ id: s.id })}>
+                            <X className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+
+            {/* PUBLICATION TAB */}
+            <TabsContent value="publication" className="flex-1 overflow-y-auto p-5">
+              <div className="max-w-2xl space-y-6">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h3 className="font-medium text-foreground">Informações para o Cidadão</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">Estas informações serão exibidas na Central de Serviços do Cidadão quando o serviço for publicado</p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {(selectedType as any).isPublic ? (
+                      <Button size="sm" variant="outline" className="gap-1.5 text-red-400 border-red-400/30 hover:bg-red-500/10"
+                        onClick={() => publishMutation.mutate({ id: selectedType.id, isPublic: false })}>
+                        <EyeOff className="w-3.5 h-3.5" />Despublicar
+                      </Button>
+                    ) : (
+                      <Button size="sm" className="gap-1.5 bg-green-600 hover:bg-green-700"
+                        onClick={() => publishMutation.mutate({ id: selectedType.id, isPublic: true })}>
+                        <Globe className="w-3.5 h-3.5" />Publicar na Central
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                <div className={`p-3 rounded-lg border text-sm flex items-center gap-2 ${(selectedType as any).isPublic ? "bg-green-500/10 border-green-500/30 text-green-400" : "bg-zinc-500/10 border-zinc-500/30 text-zinc-400"}`}>
+                  {(selectedType as any).isPublic ? <Globe className="w-4 h-4 shrink-0" /> : <EyeOff className="w-4 h-4 shrink-0" />}
+                  {(selectedType as any).isPublic ? "Este serviço está publicado e visível na Central do Cidadão." : "Este serviço não está publicado. Preencha as informações abaixo e clique em Publicar."}
+                </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <Label className="flex items-center gap-1.5"><Info className="w-3.5 h-3.5" />Para que serve este serviço?</Label>
+                    <Textarea value={pubForm.purpose} onChange={e => setPubForm(p => ({ ...p, purpose: e.target.value }))} placeholder="Descreva o objetivo e finalidade deste serviço para o cidadão..." rows={3} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5" />Quem pode solicitar?</Label>
+                    <Textarea value={pubForm.whoCanRequest} onChange={e => setPubForm(p => ({ ...p, whoCanRequest: e.target.value }))} placeholder="Ex: Qualquer cidadão maior de 18 anos com CPF..." rows={2} />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="flex items-center gap-1.5"><DollarSign className="w-3.5 h-3.5" />Custo</Label>
+                      <Input value={pubForm.cost} onChange={e => setPubForm(p => ({ ...p, cost: e.target.value }))} placeholder="Ex: Gratuito, R$ 50,00..." />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="flex items-center gap-1.5"><Building2 className="w-3.5 h-3.5" />Forma de atendimento</Label>
+                      <Input value={pubForm.formOfService} onChange={e => setPubForm(p => ({ ...p, formOfService: e.target.value }))} placeholder="Ex: Online, Presencial, Híbrido..." />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="flex items-center gap-1.5"><MessageSquare className="w-3.5 h-3.5" />Canal de resposta</Label>
+                    <Input value={pubForm.responseChannel} onChange={e => setPubForm(p => ({ ...p, responseChannel: e.target.value }))} placeholder="Ex: E-mail, Portal, Presencial..." />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="flex items-center gap-1.5"><Info className="w-3.5 h-3.5" />Observações importantes</Label>
+                    <Textarea value={pubForm.importantNotes} onChange={e => setPubForm(p => ({ ...p, importantNotes: e.target.value }))} placeholder="Informações adicionais, restrições, avisos..." rows={3} />
+                  </div>
+                </div>
+
+                <div className="flex justify-end">
+                  <Button onClick={handleSavePub} disabled={savingPub}>
+                    {savingPub ? "Salvando..." : "Salvar Informações de Publicação"}
+                  </Button>
+                </div>
+              </div>
+            </TabsContent>
           </Tabs>
         </div>
       ) : (
-        /* ── List view: service type cards ── */
+        /* ── List view ── */
         <div className="p-6 space-y-6">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-semibold text-foreground">Tipos de Atendimento</h1>
-              <p className="text-sm text-muted-foreground mt-1">Configure os serviços, campos obrigatórios, documentos exigidos, SLAs e fluxos de tramitação.</p>
+              <p className="text-sm text-muted-foreground mt-1">Configure os serviços, campos obrigatórios, documentos exigidos, assuntos, SLAs e publicação na Central do Cidadão.</p>
             </div>
             <Button onClick={openCreate} className="gap-2"><Plus className="w-4 h-4" />Novo Tipo</Button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {serviceTypes.length === 0 && (
+            {(serviceTypes as any[]).length === 0 && (
               <div className="col-span-3 text-center py-16 text-muted-foreground">
                 <Settings2 className="w-12 h-12 mx-auto mb-3 opacity-30" />
                 <p>Nenhum tipo de atendimento configurado.</p>
@@ -330,6 +581,7 @@ export default function ServiceTypes() {
             )}
             {(serviceTypes as any[]).map((st) => {
               const secrecy = secrecyLabels[st.secrecyLevel] ?? secrecyLabels.public;
+              const pubStatus = pubStatusLabels[st.publicationStatus ?? "draft"] ?? pubStatusLabels.draft;
               return (
                 <div key={st.id} className="rounded-xl border border-border bg-card hover:border-primary/40 transition-colors p-4 space-y-3">
                   <div className="flex items-start justify-between gap-2">
@@ -337,9 +589,14 @@ export default function ServiceTypes() {
                       <h3 className="font-semibold text-foreground truncate">{st.name}</h3>
                       {st.code && <p className="font-mono text-xs text-muted-foreground mt-0.5">{st.code}</p>}
                     </div>
-                    <Badge className={`text-xs border shrink-0 ${secrecy.color}`}>
-                      <Shield className="w-3 h-3 mr-1" />{secrecy.label}
-                    </Badge>
+                    <div className="flex flex-col items-end gap-1">
+                      <Badge className={`text-xs border shrink-0 ${secrecy.color}`}>
+                        <Shield className="w-3 h-3 mr-1" />{secrecy.label}
+                      </Badge>
+                      <Badge className={`text-xs border shrink-0 ${pubStatus.color}`}>
+                        <Globe className="w-3 h-3 mr-1" />{pubStatus.label}
+                      </Badge>
+                    </div>
                   </div>
                   {st.description && <p className="text-xs text-muted-foreground line-clamp-2">{st.description}</p>}
                   {(st.slaResponseHours || st.slaConclusionHours) && (
@@ -356,10 +613,19 @@ export default function ServiceTypes() {
                     {!st.isActive && <span className="flex items-center gap-1 text-xs bg-red-500/10 text-red-400 border border-red-500/20 rounded px-1.5 py-0.5"><XCircle className="w-3 h-3" />Inativo</span>}
                   </div>
                   <div className="flex gap-2 pt-1">
-                    <Button size="sm" variant="outline" className="flex-1 gap-1.5" onClick={() => { setSelectedId(st.id); setActiveTab("fields"); }}>
-                      <FormInput className="w-3.5 h-3.5" />Campos & Docs
+                    <Button size="sm" variant="outline" className="flex-1 gap-1.5" onClick={() => openDetail(st)}>
+                      <FormInput className="w-3.5 h-3.5" />Configurar
                       <ChevronRight className="w-3.5 h-3.5 ml-auto" />
                     </Button>
+                    {st.isPublic ? (
+                      <Button size="sm" variant="outline" className="text-red-400 border-red-400/30 hover:bg-red-500/10" onClick={() => publishMutation.mutate({ id: st.id, isPublic: false })}>
+                        <EyeOff className="w-3.5 h-3.5" />
+                      </Button>
+                    ) : (
+                      <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => publishMutation.mutate({ id: st.id, isPublic: true })}>
+                        <Globe className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
                     <Button size="sm" variant="outline" onClick={() => openEdit(st)}><Pencil className="w-3.5 h-3.5" /></Button>
                     <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => deleteMutation.mutate({ id: st.id })}><Trash2 className="w-3.5 h-3.5" /></Button>
                   </div>
@@ -379,32 +645,32 @@ export default function ServiceTypes() {
           <div className="space-y-4 py-2">
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2 space-y-1.5">
-                <Label>Nome do Serviço *</Label>
-                <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Ex: Solicitação de Certidão" />
+                <Label>Nome *</Label>
+                <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Ex: Alvará de Funcionamento" />
               </div>
               <div className="space-y-1.5">
                 <Label>Código</Label>
-                <Input value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} placeholder="Ex: CERT-001" className="font-mono" />
+                <Input value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} placeholder="Ex: ALV-001" />
               </div>
               <div className="space-y-1.5">
                 <Label>Categoria</Label>
-                <Input value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} placeholder="Ex: Documentação" />
+                <Input value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} placeholder="Ex: Licenças" />
               </div>
               <div className="col-span-2 space-y-1.5">
                 <Label>Descrição</Label>
-                <Textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={2} placeholder="Descreva o serviço..." />
+                <Textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={2} />
               </div>
               <div className="space-y-1.5">
                 <Label>SLA Resposta (horas)</Label>
-                <Input type="number" value={form.slaResponseHours} onChange={e => setForm(f => ({ ...f, slaResponseHours: e.target.value }))} placeholder="Ex: 24" />
+                <Input type="number" value={form.slaResponseHours} onChange={e => setForm(f => ({ ...f, slaResponseHours: e.target.value }))} placeholder="72" />
               </div>
               <div className="space-y-1.5">
                 <Label>SLA Conclusão (horas)</Label>
-                <Input type="number" value={form.slaConclusionHours} onChange={e => setForm(f => ({ ...f, slaConclusionHours: e.target.value }))} placeholder="Ex: 720" />
+                <Input type="number" value={form.slaConclusionHours} onChange={e => setForm(f => ({ ...f, slaConclusionHours: e.target.value }))} placeholder="720" />
               </div>
               <div className="col-span-2 space-y-1.5">
                 <Label>Nível de Sigilo</Label>
-                <Select value={form.secrecyLevel} onValueChange={(v: any) => setForm(f => ({ ...f, secrecyLevel: v }))}>
+                <Select value={form.secrecyLevel} onValueChange={v => setForm(f => ({ ...f, secrecyLevel: v as any }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="public">Público</SelectItem>
@@ -415,18 +681,18 @@ export default function ServiceTypes() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3 pt-2">
+            <div className="grid grid-cols-2 gap-3">
               {[
-                { key: "requiresSelfie", label: "Exige Selfie", icon: Camera },
-                { key: "requiresGeolocation", label: "Exige Geolocalização", icon: MapPin },
-                { key: "requiresApproval", label: "Requer Aprovação", icon: CheckCircle2 },
-                { key: "requiresStrongAuth", label: "Autenticação Forte", icon: Shield },
-                { key: "canConvertToProcess", label: "Pode virar Processo", icon: Settings2 },
-                { key: "allowPublicConsult", label: "Consulta Pública", icon: CheckCircle2 },
-              ].map(({ key, label, icon: Icon }) => (
-                <div key={key} className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/30">
-                  <div className="flex items-center gap-2 text-sm"><Icon className="w-4 h-4 text-muted-foreground" />{label}</div>
-                  <Switch checked={(form as any)[key]} onCheckedChange={v => setForm(f => ({ ...f, [key]: v }))} />
+                { key: "requiresApproval", label: "Requer Aprovação" },
+                { key: "canConvertToProcess", label: "Pode virar Processo" },
+                { key: "allowPublicConsult", label: "Consulta Pública" },
+                { key: "requiresSelfie", label: "Requer Selfie" },
+                { key: "requiresGeolocation", label: "Requer Geolocalização" },
+                { key: "requiresStrongAuth", label: "Autenticação Forte" },
+              ].map(({ key, label }) => (
+                <div key={key} className="flex items-center justify-between p-3 rounded-lg border border-border/50 bg-muted/20">
+                  <Label className="text-sm cursor-pointer">{label}</Label>
+                  <Switch checked={form[key as keyof ServiceTypeForm] as boolean} onCheckedChange={v => setForm(f => ({ ...f, [key]: v }))} />
                 </div>
               ))}
             </div>
@@ -442,24 +708,24 @@ export default function ServiceTypes() {
 
       {/* Field Form Dialog */}
       <Dialog open={showFieldForm} onOpenChange={setShowFieldForm}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>{editingField ? "Editar Campo" : "Adicionar Campo"}</DialogTitle></DialogHeader>
-          <div className="space-y-3 py-2">
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>{editingField ? "Editar Campo" : "Novo Campo"}</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <Label>Rótulo (label) *</Label>
-              <Input placeholder="Ex: Nome Completo" value={fieldForm.label} onChange={e => setFieldForm(p => ({ ...p, label: e.target.value }))} />
+              <Label>Rótulo *</Label>
+              <Input value={fieldForm.label} onChange={e => setFieldForm(f => ({ ...f, label: e.target.value }))} placeholder="Ex: Nome Completo" />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label>Tipo de Campo</Label>
-                <Select value={fieldForm.fieldType} onValueChange={v => setFieldForm(p => ({ ...p, fieldType: v }))}>
+                <Label>Tipo</Label>
+                <Select value={fieldForm.fieldType} onValueChange={v => setFieldForm(f => ({ ...f, fieldType: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>{FIELD_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
                 <Label>Obrigatoriedade</Label>
-                <Select value={fieldForm.requirement} onValueChange={v => setFieldForm(p => ({ ...p, requirement: v }))}>
+                <Select value={fieldForm.requirement} onValueChange={v => setFieldForm(f => ({ ...f, requirement: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="required">Obrigatório</SelectItem>
@@ -471,62 +737,103 @@ export default function ServiceTypes() {
             </div>
             <div className="space-y-1.5">
               <Label>Placeholder</Label>
-              <Input placeholder="Texto de exemplo no campo..." value={fieldForm.placeholder} onChange={e => setFieldForm(p => ({ ...p, placeholder: e.target.value }))} />
+              <Input value={fieldForm.placeholder} onChange={e => setFieldForm(f => ({ ...f, placeholder: e.target.value }))} />
             </div>
             <div className="space-y-1.5">
               <Label>Texto de Ajuda</Label>
-              <Input placeholder="Instrução para o cidadão..." value={fieldForm.helpText} onChange={e => setFieldForm(p => ({ ...p, helpText: e.target.value }))} />
+              <Input value={fieldForm.helpText} onChange={e => setFieldForm(f => ({ ...f, helpText: e.target.value }))} />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowFieldForm(false)}>Cancelar</Button>
-            <Button onClick={handleSaveField} disabled={!fieldForm.label || createField.isPending || updateField.isPending}>
-              {editingField ? "Salvar" : "Adicionar"}
-            </Button>
+            <Button onClick={handleSaveField} disabled={!fieldForm.label}>{editingField ? "Salvar" : "Adicionar"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Document Form Dialog */}
       <Dialog open={showDocForm} onOpenChange={setShowDocForm}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>{editingDoc ? "Editar Documento" : "Adicionar Documento"}</DialogTitle></DialogHeader>
-          <div className="space-y-3 py-2">
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>{editingDoc ? "Editar Documento" : "Novo Documento"}</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <Label>Nome do Documento *</Label>
-              <Input placeholder="Ex: RG ou CNH" value={docForm.name} onChange={e => setDocForm(p => ({ ...p, name: e.target.value }))} />
+              <Label>Nome *</Label>
+              <Input value={docForm.name} onChange={e => setDocForm(f => ({ ...f, name: e.target.value }))} placeholder="Ex: RG ou CNH" />
             </div>
             <div className="space-y-1.5">
               <Label>Descrição</Label>
-              <Textarea placeholder="Instruções sobre o documento..." value={docForm.description} onChange={e => setDocForm(p => ({ ...p, description: e.target.value }))} rows={2} />
+              <Input value={docForm.description} onChange={e => setDocForm(f => ({ ...f, description: e.target.value }))} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Obrigatoriedade</Label>
+                <Select value={docForm.requirement} onValueChange={v => setDocForm(f => ({ ...f, requirement: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="required">Obrigatório</SelectItem>
+                    <SelectItem value="complementary">Complementar</SelectItem>
+                    <SelectItem value="optional">Opcional</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Tamanho Máx (MB)</Label>
+                <Input type="number" value={docForm.maxSizeMb} onChange={e => setDocForm(f => ({ ...f, maxSizeMb: Number(e.target.value) }))} />
+              </div>
             </div>
             <div className="space-y-1.5">
-              <Label>Obrigatoriedade</Label>
-              <Select value={docForm.requirement} onValueChange={v => setDocForm(p => ({ ...p, requirement: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="required">Obrigatório</SelectItem>
-                  <SelectItem value="complementary">Complementar</SelectItem>
-                  <SelectItem value="optional">Opcional</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Formatos Aceitos</Label>
-                <Input placeholder="pdf,jpg,png" value={docForm.acceptedFormats} onChange={e => setDocForm(p => ({ ...p, acceptedFormats: e.target.value }))} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Tamanho Máximo (MB)</Label>
-                <Input type="number" value={docForm.maxSizeMb} onChange={e => setDocForm(p => ({ ...p, maxSizeMb: parseInt(e.target.value) || 10 }))} />
-              </div>
+              <Label>Formatos Aceitos</Label>
+              <Input value={docForm.acceptedFormats} onChange={e => setDocForm(f => ({ ...f, acceptedFormats: e.target.value }))} placeholder="pdf,jpg,png" />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDocForm(false)}>Cancelar</Button>
-            <Button onClick={handleSaveDoc} disabled={!docForm.name || createDoc.isPending || updateDoc.isPending}>
-              {editingDoc ? "Salvar" : "Adicionar"}
-            </Button>
+            <Button onClick={handleSaveDoc} disabled={!docForm.name}>{editingDoc ? "Salvar" : "Adicionar"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Subject Form Dialog */}
+      <Dialog open={showSubjectForm} onOpenChange={setShowSubjectForm}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>{editingSubject ? "Editar Assunto" : "Novo Assunto"}</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2 space-y-1.5">
+                <Label>Nome *</Label>
+                <Input value={subjectForm.name} onChange={e => setSubjectForm(f => ({ ...f, name: e.target.value }))} placeholder="Ex: Reclamação, Denúncia, Requerimento..." />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Código</Label>
+                <Input value={subjectForm.code} onChange={e => setSubjectForm(f => ({ ...f, code: e.target.value }))} placeholder="Ex: REC-001" />
+              </div>
+              <div className="flex items-center justify-between p-3 rounded-lg border border-border/50 bg-muted/20">
+                <Label className="text-sm cursor-pointer">Visível ao Cidadão</Label>
+                <Switch checked={subjectForm.isPublic} onCheckedChange={v => setSubjectForm(f => ({ ...f, isPublic: v }))} />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Descrição</Label>
+              <Textarea value={subjectForm.description} onChange={e => setSubjectForm(f => ({ ...f, description: e.target.value }))} rows={2} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>SLA Resposta (horas)</Label>
+                <Input type="number" value={subjectForm.slaResponseHours} onChange={e => setSubjectForm(f => ({ ...f, slaResponseHours: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>SLA Conclusão (horas)</Label>
+                <Input type="number" value={subjectForm.slaConclusionHours} onChange={e => setSubjectForm(f => ({ ...f, slaConclusionHours: e.target.value }))} />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Observações</Label>
+              <Textarea value={subjectForm.importantNotes} onChange={e => setSubjectForm(f => ({ ...f, importantNotes: e.target.value }))} rows={2} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowSubjectForm(false)}>Cancelar</Button>
+            <Button onClick={handleSaveSubject} disabled={!subjectForm.name}>{editingSubject ? "Salvar" : "Adicionar"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

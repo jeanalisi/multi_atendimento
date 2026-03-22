@@ -40,17 +40,24 @@ import {
 import {
   createServiceTypeField,
   createServiceTypeDocument,
+  createServiceSubject,
   deleteServiceTypeField,
   deleteServiceTypeDocument,
+  deleteServiceSubject,
   getCidadaoServiceDetail,
   getCidadaoServices,
+  getServiceSubjectById,
+  getServiceSubjects,
   getServiceTypeDocuments,
   getServiceTypeFields,
+  publishServiceType,
   reorderServiceTypeFields,
   updateServiceTypeDocument,
   updateServiceTypeField,
+  updateServiceSubject,
 } from "./db-service-config";
 import { storagePut } from "./storage";
+import { createProtocol } from "./db-caius";
 import { nanoid } from "nanoid";
 
 // ─── Service Types Router ──────────────────────────────────────────────────────
@@ -453,6 +460,53 @@ export const serviceTypeDocumentsRouter = router({
     .mutation(({ input }) => deleteServiceTypeDocument(input.id)),
 });
 
+// ─── Service Subjects Router ──────────────────────────────────────────────────
+export const serviceSubjectsRouter = router({
+  list: protectedProcedure
+    .input(z.object({ serviceTypeId: z.number() }))
+    .query(({ input }) => getServiceSubjects(input.serviceTypeId)),
+
+  listPublic: publicProcedure
+    .input(z.object({ serviceTypeId: z.number() }))
+    .query(({ input }) => getServiceSubjects(input.serviceTypeId, true)),
+
+  create: protectedProcedure
+    .input(z.object({
+      serviceTypeId: z.number(),
+      name: z.string().min(2),
+      description: z.string().optional(),
+      code: z.string().optional(),
+      isPublic: z.boolean().default(true),
+      formTemplateId: z.number().optional(),
+      slaResponseHours: z.number().optional(),
+      slaConclusionHours: z.number().optional(),
+      responsibleSectorId: z.number().optional(),
+      importantNotes: z.string().optional(),
+      sortOrder: z.number().default(0),
+    }))
+    .mutation(({ input }) => createServiceSubject(input)),
+
+  update: protectedProcedure
+    .input(z.object({
+      id: z.number(),
+      name: z.string().optional(),
+      description: z.string().optional(),
+      isPublic: z.boolean().optional(),
+      isActive: z.boolean().optional(),
+      formTemplateId: z.number().optional(),
+      slaResponseHours: z.number().optional(),
+      slaConclusionHours: z.number().optional(),
+      responsibleSectorId: z.number().optional(),
+      importantNotes: z.string().optional(),
+      sortOrder: z.number().optional(),
+    }))
+    .mutation(({ input }) => { const { id, ...data } = input; return updateServiceSubject(id, data); }),
+
+  delete: protectedProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(({ input }) => deleteServiceSubject(input.id)),
+});
+
 // ─── Cidadão (Public Citizen Portal) Router ────────────────────────────────────
 export const cidadaoRouter = router({
   listServices: publicProcedure
@@ -465,6 +519,44 @@ export const cidadaoRouter = router({
       const service = await getCidadaoServiceDetail(input.id);
       if (!service) throw new TRPCError({ code: "NOT_FOUND" });
       return service;
+    }),
+
+  publish: protectedProcedure
+    .input(z.object({ id: z.number(), isPublic: z.boolean() }))
+    .mutation(({ input }) => publishServiceType(input.id, input.isPublic)),
+
+  getSubjects: publicProcedure
+    .input(z.object({ serviceTypeId: z.number() }))
+    .query(({ input }) => getServiceSubjects(input.serviceTypeId, true)),
+
+  submitRequest: publicProcedure
+    .input(z.object({
+      serviceTypeId: z.number().optional(),
+      subjectId: z.number().optional(),
+      subject: z.string().min(3),
+      description: z.string().min(10),
+      type: z.enum(["request", "complaint", "information", "suggestion", "praise", "ombudsman", "esic", "administrative"]).default("request"),
+      requesterName: z.string().min(2),
+      requesterEmail: z.string().email().optional(),
+      requesterPhone: z.string().optional(),
+      requesterCpfCnpj: z.string().optional(),
+      isConfidential: z.boolean().default(false),
+    }))
+    .mutation(async ({ input }) => {
+      const nup = await createProtocol({
+        subject: input.subject,
+        description: input.description,
+        type: input.type,
+        channel: "web",
+        status: "open",
+        priority: "normal",
+        requesterName: input.requesterName,
+        requesterEmail: input.requesterEmail,
+        requesterPhone: input.requesterPhone,
+        requesterCpfCnpj: input.requesterCpfCnpj,
+        isConfidential: input.isConfidential,
+      });
+      return { nup, success: true };
     }),
 });
 

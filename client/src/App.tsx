@@ -34,6 +34,7 @@ import Positions from "./pages/Positions";
 import OrgInvites from "./pages/OrgInvites";
 import CentralCidadao from "./pages/CentralCidadao";
 import EstruturaAdministrativa from "./pages/EstruturaAdministrativa";
+import ServicoDetalhe from "./pages/ServicoDetalhe";
 
 function ProtocolDetailWrapper() {
   const params = useParams<{ id: string }>();
@@ -53,6 +54,7 @@ function Router() {
       <Route path={"/central-cidadao"} component={CentralCidadao} />
       <Route path={"/estrutura-administrativa"} component={EstruturaAdministrativa} />
       <Route path={"/estrutura"} component={EstruturaAdministrativa} />
+      <Route path={"/servico/:id"} component={ServicoDetalhe} />
 
       {/* Dashboard */}
       <Route path={"/"} component={Dashboard} />

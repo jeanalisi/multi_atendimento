@@ -43,6 +43,13 @@
       "when": 1774143011171,
       "tag": "0005_nifty_thanos",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1774148721870,
+      "tag": "0006_tiresome_dreadnoughts",
+      "breakpoints": true
     }
   ]
 }

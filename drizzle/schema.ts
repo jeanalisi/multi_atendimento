@@ -451,12 +451,21 @@ export const serviceTypes = mysqlTable("serviceTypes", {
   defaultResponseTemplateId: int("defaultResponseTemplateId"),
   allowedProfiles: json("allowedProfiles"),
   flowConfig: json("flowConfig"),
-  isActive: boolean("isActive").default(true).notNull(),
+   isActive: boolean("isActive").default(true).notNull(),
+  isPublic: boolean("isPublic").default(false).notNull(),
+  publicationStatus: mysqlEnum("publicationStatus", ["draft", "published", "inactive", "restricted"]).default("draft").notNull(),
+  purpose: text("purpose"),
+  whoCanRequest: text("whoCanRequest"),
+  cost: varchar("cost", { length: 255 }),
+  formOfService: varchar("formOfService", { length: 255 }),
+  responseChannel: varchar("responseChannel", { length: 255 }),
+  importantNotes: text("importantNotes"),
+  faq: json("faq"),
+  formTemplateId: int("formTemplateId"),
   createdById: int("createdById"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
-
 export type ServiceType = typeof serviceTypes.$inferSelect;
 export type InsertServiceType = typeof serviceTypes.$inferInsert;
 
@@ -833,3 +842,26 @@ export const serviceTypeDocuments = mysqlTable("serviceTypeDocuments", {
 }));
 export type ServiceTypeDocument = typeof serviceTypeDocuments.$inferSelect;
 export type InsertServiceTypeDocument = typeof serviceTypeDocuments.$inferInsert;
+
+// ─── Service Subjects (Assuntos por Tipo de Atendimento) ──────────────────────
+export const serviceSubjects = mysqlTable("serviceSubjects", {
+  id: int("id").autoincrement().primaryKey(),
+  serviceTypeId: int("serviceTypeId").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  code: varchar("code", { length: 64 }),
+  isPublic: boolean("isPublic").default(true).notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
+  formTemplateId: int("formTemplateId"),
+  slaResponseHours: int("slaResponseHours"),
+  slaConclusionHours: int("slaConclusionHours"),
+  responsibleSectorId: int("responsibleSectorId"),
+  importantNotes: text("importantNotes"),
+  sortOrder: int("sortOrder").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  serviceTypeIdx: index("ss_serviceType_idx").on(table.serviceTypeId),
+}));
+export type ServiceSubject = typeof serviceSubjects.$inferSelect;
+export type InsertServiceSubject = typeof serviceSubjects.$inferInsert;
