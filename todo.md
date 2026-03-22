@@ -208,3 +208,42 @@
 - [x] Protocolos, Processos, Documentos, Ouvidoria, Modelos — páginas acessíveis (problema era crash do servidor por db-service-config, resolvido)
 - [x] TypeScript: 0 erros de compilação
 - [x] Servidor rodando corretamente (HTTP 200)
+## Fase 17: Correções Estruturais — Menu, Inbox, Gestão Pública, Central do Cidadão, Consultar Protocolo
+
+### Correção 6 — Central de Serviços do Cidadão
+- [x] Remover fundo cinza indevido da Central de Serviços do Cidadão
+- [x] Aplicar cor padrão do sistema (bg-background) em modo claro e escuro
+- [x] Verificar containers internos com cor divergente
+- [x] Validar desktop e mobile
+
+### Correção 7 — Consultar Protocolo (404)
+- [x] Identificar causa do erro 404 (link apontava para /consulta-publica, rota era /consulta)
+- [x] Criar/corrigir rota /consultar-protocolo no App.tsx (3 aliases: /consulta, /consultar-protocolo, /consulta-publica)
+- [x] Verificar se página existe e está registrada (PublicConsulta.tsx existia e funcionava)
+- [x] Garantir busca por NUP, status e histórico básico
+- [x] Testar acesso pelo menu e URL direta
+
+### Correção 1 — Menu Lateral
+- [x] Menu fechado por padrão ao carregar (defaultOpen = false)
+- [x] Submenus abrem APENAS por clique no item pai
+- [x] Submenus fecham por clique no item pai
+- [x] Sem expansão automática por hover, foco ou rota ativa
+- [x] Rota ativa destacada sem forçar abertura do grupo
+
+### Correção 2 — Inbox
+- [x] Reconstruir lógica de carregamento inicial
+- [x] Atualização automática (polling a cada 10s/5s)
+- [x] Listagem de conversas sem duplicidade
+- [x] Abertura de conversa sem tela quebrada (layout h-full robusto)
+- [x] Troca de conversa sem travamento (reset messageText ao trocar)
+- [x] Vínculo com canal e conta
+- [x] Exibição do responsável e status de leitura
+
+### Correção 3 — Gestão Pública (Verificação)
+- [x] Protocolos (NUP): página existente e funcional (391 linhas)
+- [x] Processos Administrativos: página existente e funcional (256 linhas)
+- [x] Documentos Oficiais: página existente e funcional (344 linhas)
+- [x] Ouvidoria: página existente e funcional (294 linhas)
+- [x] Modelos de Documentos: página existente e funcional (342 linhas)
+- [x] TypeScript: 0 erros de compilação
+- [x] 73 testes passando

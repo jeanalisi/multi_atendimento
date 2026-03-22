@@ -118,13 +118,14 @@ function NavItem({ href, icon: Icon, label, isActive }: { href: string; icon: an
   );
 }
 
-function NavGroup({ label, children, defaultOpen = true }: { label: string; children: React.ReactNode; defaultOpen?: boolean }) {
+function NavGroup({ label, children, defaultOpen = false }: { label: string; children: React.ReactNode; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="space-y-0.5">
       <button
-        onClick={() => setOpen(!open)}
-        className="flex w-full items-center justify-between px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/40 hover:text-sidebar-foreground/60 transition-colors"
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className="flex w-full items-center justify-between px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/40 hover:text-sidebar-foreground/60 transition-colors rounded-md hover:bg-sidebar-accent/30"
       >
         {label}
         {open ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}

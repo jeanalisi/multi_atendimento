@@ -45,8 +45,10 @@ function ProtocolDetailWrapper() {
 function Router() {
   return (
     <Switch>
-      {/* Public route — no auth required */}
+      {/* Public routes — no auth required */}
       <Route path={"/consulta"} component={PublicConsulta} />
+      <Route path={"/consultar-protocolo"} component={PublicConsulta} />
+      <Route path={"/consulta-publica"} component={PublicConsulta} />
       <Route path={"/central-cidadao"} component={CentralCidadao} />
 
       {/* Dashboard */}
