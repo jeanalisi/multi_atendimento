@@ -505,7 +505,18 @@ export default function DocumentEditor({
     return (
       <div className={cn("border border-border rounded-lg overflow-hidden bg-card", className)}>
         {toolbar}
-        <div className="p-4">{editorContent}</div>
+        {/* A4 page frame even in compact mode */}
+        <div className="bg-muted/20 py-4 px-2 overflow-x-auto">
+          <div
+            className={cn(
+              "mx-auto bg-white dark:bg-card shadow border border-border",
+              "w-[210mm] min-h-[297mm]",
+              "px-[2.5cm] py-[2.5cm]"
+            )}
+          >
+            {editorContent}
+          </div>
+        </div>
       </div>
     );
   }
@@ -517,8 +528,8 @@ export default function DocumentEditor({
       <div className="flex-1 overflow-y-auto py-8 px-4">
         <div
           className={cn(
-            "mx-auto bg-card shadow-md border border-border rounded-sm",
-            "min-h-[297mm] w-full max-w-[210mm]",
+            "mx-auto bg-white dark:bg-card shadow-md border border-border",
+            "min-h-[297mm] w-[210mm]",
             "px-[2.5cm] py-[2.5cm]",
             mode === "view" && "shadow-lg"
           )}

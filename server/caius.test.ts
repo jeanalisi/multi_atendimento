@@ -24,8 +24,10 @@ vi.mock("./db-caius", () => ({
   getSignaturesByDocument: vi.fn().mockResolvedValue([]),
   createAdminProcess: vi.fn().mockResolvedValue({ id: 1, nup: "2026.001.000003", title: "Processo de Licitação", type: "Licitação", status: "open" }),
   getAdminProcesses: vi.fn().mockResolvedValue([]),
-  getAdminProcessById: vi.fn().mockResolvedValue(null),
+  getAdminProcessById: vi.fn().mockResolvedValue({ process: { id: 1, nup: "2026.001.000003", title: "Processo de Licitação", type: "Licitação", status: "open", deadline: null }, tramitations: [], documents: [] }),
   updateAdminProcess: vi.fn().mockResolvedValue({ id: 1, status: "in_analysis" }),
+  getProcessDeadlineHistory: vi.fn().mockResolvedValue([]),
+  addProcessDeadlineHistory: vi.fn().mockResolvedValue(undefined),
   createOmbudsmanManifestation: vi.fn().mockResolvedValue({ id: 1, nup: "2026.001.000004", subject: "Reclamação sobre serviço", type: "complaint", status: "received" }),
   getOmbudsmanManifestations: vi.fn().mockResolvedValue([]),
   updateOmbudsmanManifestation: vi.fn().mockResolvedValue({ id: 1, status: "in_analysis" }),
@@ -240,5 +242,38 @@ describe("caius.public", () => {
     const caller = appRouter.createCaller(makeCtx());
     const result = await caller.caius.public.lookupNup({ nup: "9999.999.999999" });
     expect(result).toBeNull();
+  });
+});
+
+// ─── Process Deadlines ────────────────────────────────────────────────────────
+describe("caius.processes.deadline", () => {
+  it("deadlineHistory returns array", async () => {
+    const caller = appRouter.createCaller(makeCtx());
+    const result = await caller.caius.processes.deadlineHistory({ processId: 1 });
+    expect(Array.isArray(result)).toBe(true);
+  });
+
+  it("setDeadline (set action) returns success", async () => {
+    const caller = appRouter.createCaller(makeCtx());
+    const result = await caller.caius.processes.setDeadline({
+      processId: 1,
+      newDeadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      reason: "Prazo inicial definido",
+      action: "set",
+    });
+    expect(result).toHaveProperty("success");
+    expect(result.success).toBe(true);
+  });
+
+  it("setDeadline (extend action) returns success", async () => {
+    const caller = appRouter.createCaller(makeCtx());
+    const result = await caller.caius.processes.setDeadline({
+      processId: 1,
+      newDeadline: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+      reason: "Prorrogação por complexidade",
+      action: "extend",
+    });
+    expect(result).toHaveProperty("success");
+    expect(result.success).toBe(true);
   });
 });

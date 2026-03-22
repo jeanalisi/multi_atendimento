@@ -4,7 +4,7 @@
  */
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
-import DashboardLayout from "@/components/DashboardLayout";
+import OmniLayout from "@/components/OmniLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -225,7 +225,7 @@ export default function WorkflowDesigner() {
   ];
 
   return (
-    <DashboardLayout>
+    <OmniLayout title="Motor de Workflow">
       <div className="p-6 max-w-6xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -383,6 +383,6 @@ export default function WorkflowDesigner() {
           )}
         </DialogContent>
       </Dialog>
-    </DashboardLayout>
+    </OmniLayout>
   );
 }

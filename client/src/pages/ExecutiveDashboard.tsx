@@ -3,7 +3,7 @@
  */
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
-import DashboardLayout from "@/components/DashboardLayout";
+import OmniLayout from "@/components/OmniLayout";
 import { cn } from "@/lib/utils";
 import {
   BarChart2, TrendingUp, TrendingDown, Clock, CheckCircle2,
@@ -76,7 +76,7 @@ export default function ExecutiveDashboard() {
   const maxSector = Math.max(...(bySector as any[]).map((s: any) => Number(s.total) || 0), 1);
 
   return (
-    <DashboardLayout>
+    <OmniLayout title="Dashboard Executivo">
       <div className="p-6 max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -202,6 +202,6 @@ export default function ExecutiveDashboard() {
           )}
         </div>
       </div>
-    </DashboardLayout>
+    </OmniLayout>
   );
 }

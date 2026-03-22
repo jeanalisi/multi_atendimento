@@ -85,6 +85,13 @@
       "when": 1774161276650,
       "tag": "0011_wild_santa_claus",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "5",
+      "when": 1774181827304,
+      "tag": "0012_famous_silvermane",
+      "breakpoints": true
     }
   ]
 }

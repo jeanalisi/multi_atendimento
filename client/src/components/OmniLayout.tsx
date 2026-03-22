@@ -3,6 +3,7 @@ import { getLoginUrl } from "@/const";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import {
+  Activity,
   BarChart3,
   Bell,
   BookOpen,
@@ -16,12 +17,15 @@ import {
   FileText,
   FormInput,
   GitBranch,
+  Globe,
   HelpCircle,
   Inbox,
   KeyRound,
   LayoutDashboard,
+  Library,
   LogOut,
   Mail,
+  MapPin,
   MessageSquare,
   Monitor,
   Moon,
@@ -30,13 +34,17 @@ import {
   Scale,
   Search,
   Settings2,
+  Shield,
   ShieldCheck,
   Sparkles,
   Sun,
   Tag,
   Ticket,
+  TrendingUp,
+  Upload,
   Users,
   Wifi,
+  Workflow,
 } from "lucide-react";
 import React, { useState, useRef, createContext, useContext } from "react";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -67,8 +75,19 @@ const caiusItems = [
   { href: "/protocols", icon: ClipboardList, label: "Protocolos (NUP)" },
   { href: "/processes", icon: Scale, label: "Processos Adm." },
   { href: "/documents", icon: FileText, label: "Documentos Oficiais" },
+  { href: "/document-signatures", icon: Shield, label: "Assinaturas Digitais" },
+  { href: "/sign-external-pdf", icon: Upload, label: "Assinar PDF Externo" },
   { href: "/ombudsman", icon: BookOpen, label: "Ouvidoria" },
   { href: "/templates", icon: PenLine, label: "Modelos de Documentos" },
+  { href: "/workflow", icon: Workflow, label: "Workflows" },
+  { href: "/executive-dashboard", icon: TrendingUp, label: "Dashboard Executivo" },
+  { href: "/ouvidoria-admin", icon: Globe, label: "Ouvidoria / e-SIC" },
+  { href: "/geo-monitor", icon: MapPin, label: "Geo Monitor" },
+  { href: "/knowledge-base", icon: Library, label: "Base de Conhecimento" },
+];
+
+const channelItems = [
+  { href: "/channel-health", icon: Activity, label: "Saúde dos Canais" },
 ];
 
 const adminItems = [
@@ -418,6 +437,12 @@ export default function OmniLayout({ children, title, fullHeight }: OmniLayoutPr
 
               <NavGroup label="Gestão Pública">
                 {caiusItems.map((item) => (
+                  <NavItem key={item.href} {...item} isActive={location === item.href || (item.href !== "/" && location.startsWith(item.href))} />
+                ))}
+              </NavGroup>
+
+              <NavGroup label="Canais">
+                {channelItems.map((item) => (
                   <NavItem key={item.href} {...item} isActive={location === item.href || (item.href !== "/" && location.startsWith(item.href))} />
                 ))}
               </NavGroup>

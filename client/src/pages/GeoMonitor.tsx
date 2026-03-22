@@ -3,7 +3,7 @@
  */
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
-import DashboardLayout from "@/components/DashboardLayout";
+import OmniLayout from "@/components/OmniLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -77,7 +77,7 @@ export default function GeoMonitor() {
   ];
 
   return (
-    <DashboardLayout>
+    <OmniLayout title="Geo Monitor">
       <div className="p-6 max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -316,6 +316,6 @@ export default function GeoMonitor() {
           )}
         </DialogContent>
       </Dialog>
-    </DashboardLayout>
+    </OmniLayout>
   );
 }

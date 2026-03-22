@@ -1,17 +1,18 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
-import DashboardLayout from "@/components/DashboardLayout";
+import OmniLayout from "@/components/OmniLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import {
-  Plus, Pencil, Trash2, GripVertical, Settings,
+  Plus, Pencil, Trash2, Settings,
   FileText, FolderOpen, ClipboardList, Scale, Building2,
   Users, BookOpen, Archive, Star, Briefcase, Globe
 } from "lucide-react";
@@ -36,6 +37,18 @@ const COLOR_OPTIONS = [
   "#3b82f6", "#06b6d4", "#64748b", "#1e293b",
 ];
 
+const MENU_SECTIONS = [
+  { value: "gestao-publica", label: "Gestão Pública" },
+  { value: "atendimento", label: "Atendimento" },
+  { value: "admin", label: "Administração" },
+  { value: "config", label: "Configurações" },
+  { value: "org", label: "Estrutura Organizacional" },
+];
+
+function getMenuSectionLabel(value: string) {
+  return MENU_SECTIONS.find(s => s.value === value)?.label ?? value;
+}
+
 function getIconComponent(name: string) {
   const found = ICON_OPTIONS.find(o => o.value === name);
   return found?.icon ?? FileText;
@@ -47,6 +60,7 @@ interface ModuleFormData {
   description: string;
   icon: string;
   color: string;
+  menuSection: string;
   menuOrder: number;
 }
 
@@ -56,6 +70,7 @@ const defaultForm: ModuleFormData = {
   description: "",
   icon: "FileText",
   color: "#6366f1",
+  menuSection: "gestao-publica",
   menuOrder: 0,
 };
 
@@ -120,6 +135,7 @@ export default function CustomModules() {
       description: mod.description ?? "",
       icon: mod.icon ?? "FileText",
       color: mod.color ?? "#6366f1",
+      menuSection: mod.menuSection ?? "gestao-publica",
       menuOrder: mod.menuOrder ?? 0,
     });
     setEditingId(mod.id);
@@ -138,7 +154,7 @@ export default function CustomModules() {
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
   return (
-    <DashboardLayout>
+    <OmniLayout>
       <div className="p-6 max-w-5xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -191,6 +207,11 @@ export default function CustomModules() {
                           {!mod.isActive && <Badge variant="outline" className="text-xs">Inativo</Badge>}
                         </div>
                         <p className="text-xs text-muted-foreground font-mono mt-0.5">/{mod.slug}</p>
+                        {mod.menuSection && (
+                          <Badge variant="secondary" className="text-xs mt-1">
+                            {getMenuSectionLabel(mod.menuSection)}
+                          </Badge>
+                        )}
                       </div>
                       <div className="flex items-center gap-1">
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(mod)}>
@@ -228,7 +249,7 @@ export default function CustomModules() {
       <Dialog open={showCreate || editingId !== null} onOpenChange={(open) => {
         if (!open) { setShowCreate(false); setEditingId(null); }
       }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingId ? "Editar Módulo" : "Novo Módulo"}</DialogTitle>
           </DialogHeader>
@@ -296,6 +317,20 @@ export default function CustomModules() {
               </div>
             </div>
             <div className="space-y-1.5">
+              <Label>Grupo do Menu *</Label>
+              <Select value={form.menuSection} onValueChange={v => setForm(f => ({ ...f, menuSection: v }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o grupo..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {MENU_SECTIONS.map(s => (
+                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">O módulo aparecerá neste grupo do menu lateral.</p>
+            </div>
+            <div className="space-y-1.5">
               <Label>Ordem no Menu</Label>
               <Input
                 type="number"
@@ -337,6 +372,6 @@ export default function CustomModules() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </DashboardLayout>
+    </OmniLayout>
   );
 }

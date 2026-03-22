@@ -22,10 +22,13 @@ import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import {
   AlertCircle,
+  CalendarClock,
+  CalendarPlus,
   CheckCircle2,
   ChevronRight,
   Clock,
   Filter,
+  History,
   Loader2,
   Paperclip,
   Plus,
@@ -34,6 +37,7 @@ import {
   Trash2,
   XCircle,
 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -271,9 +275,169 @@ function CreateProcessDialog({ onCreated }: { onCreated: () => void }) {
   );
 }
 
+// ─── Deadline Management Modal ───────────────────────────────────────────────
+function DeadlineModal({ process, onClose }: { process: any; onClose: () => void }) {
+  const utils = trpc.useUtils();
+  const [newDeadline, setNewDeadline] = useState(
+    process.deadline ? new Date(process.deadline).toISOString().split("T")[0] : ""
+  );
+  const [reason, setReason] = useState("");
+  const [action, setAction] = useState<"set" | "extend" | "reduce" | "remove">("set");
+
+  const { data: history = [], isLoading: historyLoading } = trpc.caius.processes.deadlineHistory.useQuery(
+    { processId: process.id }
+  );
+
+  const setDeadline = trpc.caius.processes.setDeadline.useMutation({
+    onSuccess: () => {
+      toast.success("Prazo atualizado com sucesso!");
+      utils.caius.processes.list.invalidate();
+      onClose();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const handleSubmit = () => {
+    if (!reason.trim()) return toast.error("Informe o motivo da alteração.");
+    if (action !== "remove" && !newDeadline) return toast.error("Informe a nova data de prazo.");
+    setDeadline.mutate({
+      processId: process.id,
+      newDeadline: action === "remove" ? null : new Date(newDeadline + "T23:59:59"),
+      reason,
+      action,
+    });
+  };
+
+  const actionLabels: Record<string, string> = {
+    set: "Definir Prazo",
+    extend: "Prorrogar Prazo",
+    reduce: "Reduzir Prazo",
+    remove: "Remover Prazo",
+  };
+
+  const actionColors: Record<string, string> = {
+    set: "text-blue-400",
+    extend: "text-yellow-400",
+    reduce: "text-orange-400",
+    remove: "text-red-400",
+  };
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <CalendarClock className="h-5 w-5 text-primary" />
+            Gestão de Prazo
+          </DialogTitle>
+          <p className="text-xs text-muted-foreground font-mono">{process.nup}</p>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          {/* Current deadline */}
+          <div className="rounded-lg bg-muted/30 border border-border p-3">
+            <p className="text-xs text-muted-foreground mb-1">Prazo Atual</p>
+            <p className="font-semibold text-sm">
+              {process.deadline
+                ? new Date(process.deadline).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })
+                : <span className="text-muted-foreground italic">Sem prazo definido</span>}
+            </p>
+          </div>
+
+          {/* Action type */}
+          <div className="space-y-1.5">
+            <Label>Tipo de Alteração</Label>
+            <Select value={action} onValueChange={(v) => setAction(v as any)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="set">Definir Prazo</SelectItem>
+                <SelectItem value="extend">Prorrogar Prazo</SelectItem>
+                <SelectItem value="reduce">Reduzir Prazo</SelectItem>
+                <SelectItem value="remove">Remover Prazo</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* New deadline date */}
+          {action !== "remove" && (
+            <div className="space-y-1.5">
+              <Label>Nova Data de Prazo</Label>
+              <Input
+                type="date"
+                value={newDeadline}
+                onChange={(e) => setNewDeadline(e.target.value)}
+                min={new Date().toISOString().split("T")[0]}
+              />
+            </div>
+          )}
+
+          {/* Reason */}
+          <div className="space-y-1.5">
+            <Label>Motivo / Justificativa *</Label>
+            <Textarea
+              placeholder="Descreva o motivo da alteração do prazo..."
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              rows={3}
+            />
+          </div>
+
+          {/* History */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <History className="h-4 w-4 text-muted-foreground" />
+              <Label className="text-sm">Histórico de Alterações</Label>
+            </div>
+            {historyLoading ? (
+              <div className="text-center py-4"><Loader2 className="h-4 w-4 animate-spin mx-auto text-muted-foreground" /></div>
+            ) : history.length === 0 ? (
+              <p className="text-xs text-muted-foreground italic">Nenhuma alteração registrada.</p>
+            ) : (
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {history.map((h: any) => (
+                  <div key={h.id} className="rounded-lg border border-border bg-muted/20 p-2.5 text-xs">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className={cn("font-semibold capitalize", actionColors[h.action] ?? "text-foreground")}>
+                        {actionLabels[h.action] ?? h.action}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {new Date(h.createdAt).toLocaleDateString("pt-BR")}
+                      </span>
+                    </div>
+                    <p className="text-muted-foreground">{h.reason}</p>
+                    {h.changedByName && (
+                      <p className="text-muted-foreground mt-0.5">Por: {h.changedByName}</p>
+                    )}
+                    {h.newDeadline && (
+                      <p className="text-foreground mt-0.5">
+                        Novo prazo: {new Date(h.newDeadline).toLocaleDateString("pt-BR")}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 pt-2">
+          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button onClick={handleSubmit} disabled={setDeadline.isPending}>
+            {setDeadline.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+            Salvar Prazo
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function AdminProcesses() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [deadlineProcess, setDeadlineProcess] = useState<any>(null);
   const utils = trpc.useUtils();
 
   const { data: processes, isLoading } = trpc.caius.processes.list.useQuery({
@@ -283,6 +447,7 @@ export default function AdminProcesses() {
   });
 
   return (
+    <>
     <OmniLayout title="Processos Administrativos">
       <div className="p-6 space-y-5">
         <div className="flex flex-wrap items-center gap-3">
@@ -314,6 +479,7 @@ export default function AdminProcesses() {
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Setor</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Abertura</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Prazo</th>
                   <th className="px-4 py-3"></th>
                 </tr>
               </thead>
@@ -361,7 +527,27 @@ export default function AdminProcesses() {
                           <span className="text-xs text-muted-foreground">{new Date(process.createdAt).toLocaleDateString("pt-BR")}</span>
                         </td>
                         <td className="px-4 py-3">
-                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                          {process.deadline ? (
+                            <span className={cn(
+                              "text-xs font-medium",
+                              new Date(process.deadline) < new Date() ? "text-red-400" : "text-green-400"
+                            )}>
+                              {new Date(process.deadline).toLocaleDateString("pt-BR")}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground/50">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            title="Gerenciar Prazo"
+                            onClick={(e) => { e.stopPropagation(); setDeadlineProcess(process); }}
+                          >
+                            <CalendarPlus className="h-3.5 w-3.5 text-muted-foreground" />
+                          </Button>
                         </td>
                       </tr>
                     );
@@ -373,5 +559,12 @@ export default function AdminProcesses() {
         </Card>
       </div>
     </OmniLayout>
+    {deadlineProcess && (
+      <DeadlineModal
+        process={deadlineProcess}
+        onClose={() => setDeadlineProcess(null)}
+      />
+    )}
+    </>
   );
 }

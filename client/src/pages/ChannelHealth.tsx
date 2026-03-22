@@ -18,6 +18,7 @@ import {
   PlugZap, Unplug,
 } from "lucide-react";
 import { toast } from "sonner";
+import OmniLayout from "@/components/OmniLayout";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -108,6 +109,7 @@ export default function ChannelHealth() {
     connectors.some((c: any) => c.channel === channel && c.accountId === accountId);
 
   return (
+    <OmniLayout title="Saúde dos Canais">
     <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -395,5 +397,6 @@ export default function ChannelHealth() {
         </TabsContent>
       </Tabs>
     </div>
+    </OmniLayout>
   );
 }

@@ -21,7 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import DashboardLayout from "@/components/DashboardLayout";
+import OmniLayout from "@/components/OmniLayout";
 import { DocumentChancela } from "@/components/DocumentChancela";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -617,7 +617,7 @@ export default function DocumentSignaturesPage() {
 
   if (matchDetail && entityId > 0) {
     return (
-      <DashboardLayout>
+      <OmniLayout title="Assinaturas Digitais">
         <div className="max-w-2xl mx-auto space-y-6">
           <div>
             <h1 className="text-xl font-bold flex items-center gap-2">
@@ -630,7 +630,7 @@ export default function DocumentSignaturesPage() {
           </div>
           <DocumentSignaturesPanel entityType={entityType} entityId={entityId} />
         </div>
-      </DashboardLayout>
+      </OmniLayout>
     );
   }
 
@@ -658,7 +658,7 @@ function DocumentSignaturesListPage() {
   };
 
   return (
-    <DashboardLayout>
+    <OmniLayout title="Assinaturas Digitais">
       <div className="space-y-6">
         {/* Cabeçalho */}
         <div className="flex items-center justify-between">
@@ -779,6 +779,6 @@ function DocumentSignaturesListPage() {
           </CardContent>
         </Card>
       </div>
-    </DashboardLayout>
+    </OmniLayout>
   );
 }

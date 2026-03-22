@@ -4,7 +4,7 @@
  */
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
-import DashboardLayout from "@/components/DashboardLayout";
+import OmniLayout from "@/components/OmniLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -88,7 +88,7 @@ export default function KnowledgeBase() {
   };
 
   return (
-    <DashboardLayout>
+    <OmniLayout title="Base de Conhecimento">
       <div className="p-6 max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -282,6 +282,6 @@ export default function KnowledgeBase() {
           )}
         </DialogContent>
       </Dialog>
-    </DashboardLayout>
+    </OmniLayout>
   );
 }

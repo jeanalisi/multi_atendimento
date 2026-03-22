@@ -1,0 +1,18 @@
+{
+  "query": "SHOW COLUMNS FROM customModules LIKE 'menuSection';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 6L37jFcA6BFgjQd.root --database Ve5tpunFZPuSgjyp4PhWYh --execute SHOW COLUMNS FROM customModules LIKE 'menuSection';",
+  "rows": [
+    {
+      "Field": "menuSection",
+      "Type": "varchar(64)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "gestao-publica",
+      "Extra": ""
+    }
+  ],
+  "messages": [],
+  "stdout": "Field\tType\tNull\tKey\tDefault\tExtra\nmenuSection\tvarchar(64)\tYES\t\tgestao-publica\t\n",
+  "stderr": "",
+  "execution_time_ms": 107
+}

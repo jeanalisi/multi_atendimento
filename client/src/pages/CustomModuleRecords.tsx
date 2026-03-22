@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useRoute } from "wouter";
 import { trpc } from "@/lib/trpc";
-import DashboardLayout from "@/components/DashboardLayout";
+import OmniLayout from "@/components/OmniLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -105,27 +105,27 @@ export default function CustomModuleRecords() {
 
   if (loadingModule) {
     return (
-      <DashboardLayout>
+      <OmniLayout>
         <div className="flex items-center justify-center h-64">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
-      </DashboardLayout>
+      </OmniLayout>
     );
   }
 
   if (!module) {
     return (
-      <DashboardLayout>
+      <OmniLayout>
         <div className="flex flex-col items-center justify-center h-64 gap-3">
           <AlertTriangle className="h-10 w-10 text-muted-foreground" />
           <p className="text-muted-foreground">Módulo não encontrado.</p>
         </div>
-      </DashboardLayout>
+      </OmniLayout>
     );
   }
 
   return (
-    <DashboardLayout>
+    <OmniLayout>
       <div className="p-6 max-w-6xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -319,6 +319,6 @@ export default function CustomModuleRecords() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </DashboardLayout>
+    </OmniLayout>
   );
 }

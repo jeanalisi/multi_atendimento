@@ -41,6 +41,8 @@ import {
   publicLookupByCpfCnpj,
   getPublicTramitationsByNup,
   updateAdminProcess,
+  getProcessDeadlineHistory,
+  addProcessDeadlineHistory,
   updateAiProvider,
   updateDocumentTemplate,
   updateOfficialDocument,
@@ -461,6 +463,49 @@ export const caiusRouter = router({
           action: "update_process",
           entity: "adminProcess",
           entityId: id,
+        });
+        return { success: true };
+      }),
+
+    // Gestão de Prazos
+    deadlineHistory: protectedProcedure
+      .input(z.object({ processId: z.number() }))
+      .query(({ input }) => getProcessDeadlineHistory(input.processId)),
+
+    setDeadline: protectedProcedure
+      .input(z.object({
+        processId: z.number(),
+        newDeadline: z.date().nullable(),
+        reason: z.string().min(1, "Motivo é obrigatório"),
+        action: z.enum(["set", "extend", "reduce", "remove"]).default("set"),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const proc = await getAdminProcessById(input.processId);
+        if (!proc) throw new TRPCError({ code: "NOT_FOUND", message: "Processo não encontrado" });
+        const previousDeadline = proc.process.deadline ?? null;
+        // Update the process deadline
+        await updateAdminProcess(input.processId, {
+          deadline: input.newDeadline ?? undefined,
+        });
+        // Record history
+        await addProcessDeadlineHistory({
+          processId: input.processId,
+          processNup: proc.process.nup,
+          previousDeadline: previousDeadline ?? undefined,
+          newDeadline: input.newDeadline ?? undefined,
+          reason: input.reason,
+          action: input.action,
+          changedById: ctx.user.id,
+          changedByName: ctx.user.name ?? "",
+        });
+        await logAudit({
+          userId: ctx.user.id,
+          userName: ctx.user.name ?? "",
+          nup: proc.process.nup,
+          action: `deadline_${input.action}`,
+          entity: "adminProcess",
+          entityId: input.processId,
+          details: { reason: input.reason, newDeadline: input.newDeadline },
         });
         return { success: true };
       }),

@@ -645,3 +645,18 @@
 - [x] Chancela exibida automaticamente após assinatura com código de acesso
 - [x] Botão Download PDF no painel de assinaturas (abre janela de impressão com layout da chancela)
 - [x] Aba Verificar Documento na Central do Cidadão com busca pública por chave
+
+## Fase 34: Correções e Novas Funcionalidades (Especificação 39)
+
+- [ ] Corrigir rota /user-allocations (404) — identificar causa, corrigir rota e validar menu
+- [ ] Normalizar menus em todas as páginas internas — garantir DashboardLayout em todas as rotas
+- [ ] Assinatura de PDF externo — upload, visualização, assinatura eletrônica, chancela, QR Code, download
+- [ ] Editor A4 — área de edição sempre no tamanho A4 fixo, centralizado, com margens visíveis
+- [x] Módulos personalizados: campo de menu pai, ordem de exibição, perfil, visibilidade
+- [ ] Workflow vinculado à Gestão Pública — vincular workflow a tipo de serviço, etapas por setor
+- [x] Prazo de processo — definir, alterar, prorrogar, histórico e alertas de vencimento
+- [x] Central do Cidadão: aba Verificar Documento já implementada na Central do Cidadão
+
+### Testes Fase 34
+- [x] 76 testes automatizados passando (6 arquivos de teste)
+- [x] TypeScript 0 erros

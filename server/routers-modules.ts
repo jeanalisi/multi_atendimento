@@ -45,6 +45,7 @@ export const customModulesRouter = router({
       description: z.string().optional(),
       icon: z.string().default("FileText"),
       color: z.string().default("#6366f1"),
+      menuSection: z.string().default("gestao-publica"),
       menuOrder: z.number().default(0),
       fields: z.array(z.any()).optional(),
     }))
@@ -60,6 +61,7 @@ export const customModulesRouter = router({
         description: input.description,
         icon: input.icon,
         color: input.color,
+        menuSection: input.menuSection,
         menuOrder: input.menuOrder,
         fields: input.fields ?? [],
         createdBy: ctx.user.id,
@@ -75,6 +77,7 @@ export const customModulesRouter = router({
       description: z.string().optional(),
       icon: z.string().optional(),
       color: z.string().optional(),
+      menuSection: z.string().optional(),
       menuOrder: z.number().optional(),
       isActive: z.boolean().optional(),
       fields: z.array(z.any()).optional(),

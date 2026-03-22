@@ -46,6 +46,7 @@ import ExecutiveDashboard from "./pages/ExecutiveDashboard";
 import OuvidoriaAdmin from "./pages/OuvidoriaAdmin";
 import GeoMonitor from "./pages/GeoMonitor";
 import KnowledgeBase from "./pages/KnowledgeBase";
+import SignExternalPDF from "./pages/SignExternalPDF";
 
 function ProtocolDetailWrapper() {
   const params = useParams<{ id: string }>();
@@ -103,6 +104,7 @@ function Router() {
       <Route path={"/context-help"} component={ContextHelpAdmin} />
       {/* Estrutura Organizacional */}
       <Route path={"/org-structure"} component={OrgStructure} />
+      <Route path={"/user-allocations"} component={OrgStructure} />
       <Route path={"/positions"} component={Positions} />
       <Route path={"/org-invites"} component={OrgInvites} />
       {/* Administração */}
@@ -120,6 +122,7 @@ function Router() {
       <Route path={"/ouvidoria-admin"} component={OuvidoriaAdmin} />
       <Route path={"/geo-monitor"} component={GeoMonitor} />
       <Route path={"/knowledge-base"} component={KnowledgeBase} />
+      <Route path={"/sign-external-pdf"} component={SignExternalPDF} />
 
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />

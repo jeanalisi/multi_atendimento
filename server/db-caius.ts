@@ -2,6 +2,8 @@ import { and, desc, eq, like, or, sql } from "drizzle-orm";
 import { getDb } from "./db";
 import {
   adminProcesses,
+  processDeadlineHistory,
+  InsertProcessDeadlineHistory,
   aiProviders,
   aiUsageLogs,
   auditLogs,
@@ -347,6 +349,23 @@ export async function updateAdminProcess(id: number, data: Partial<InsertAdminPr
   const db = await getDb();
   if (!db) return;
   await db.update(adminProcesses).set(data).where(eq(adminProcesses.id, id));
+}
+
+// ─── Process Deadline History ─────────────────────────────────────────────────
+export async function getProcessDeadlineHistory(processId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(processDeadlineHistory)
+    .where(eq(processDeadlineHistory.processId, processId))
+    .orderBy(desc(processDeadlineHistory.createdAt));
+}
+
+export async function addProcessDeadlineHistory(data: InsertProcessDeadlineHistory) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  await db.insert(processDeadlineHistory).values(data);
 }
 
 // ─── Ombudsman ────────────────────────────────────────────────────────────────

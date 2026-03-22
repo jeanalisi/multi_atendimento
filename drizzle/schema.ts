@@ -1652,3 +1652,19 @@ export const complianceEvents = mysqlTable("complianceEvents", {
   resolvedAt: timestamp("resolvedAt"),
   createdAt: timestamp("createdAt").defaultNow(),
 });
+
+// ─── Process Deadline History (Histórico de Prazos de Processos) ──────────────
+export const processDeadlineHistory = mysqlTable("processDeadlineHistory", {
+  id: int("id").primaryKey().autoincrement(),
+  processId: int("processId").notNull(),
+  processNup: varchar("processNup", { length: 32 }),
+  previousDeadline: timestamp("previousDeadline"),
+  newDeadline: timestamp("newDeadline"),
+  reason: text("reason").notNull(),
+  action: mysqlEnum("action", ["set", "extend", "reduce", "remove"]).notNull().default("set"),
+  changedById: int("changedById").notNull(),
+  changedByName: varchar("changedByName", { length: 255 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type ProcessDeadlineHistory = typeof processDeadlineHistory.$inferSelect;
+export type InsertProcessDeadlineHistory = typeof processDeadlineHistory.$inferInsert;
