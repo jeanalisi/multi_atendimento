@@ -67,7 +67,13 @@ export default function CentralCidadao() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedService, setSelectedService] = useState<any>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"services" | "profiles" | "organs" | "help">("services");
+  const [activeTab, setActiveTab] = useState<"services" | "profiles" | "organs" | "help" | "ouvidoria" | "acompanhar">("services");
+  const [ouvidoriaStep, setOuvidoriaStep] = useState<"form" | "success">("form");
+  const [ouvidoriaNup, setOuvidoriaNup] = useState("");
+  const [trackNup, setTrackNup] = useState("");
+  const [ouvidoriaForm, setOuvidoriaForm] = useState({ type: "complaint" as "complaint" | "denounce" | "praise" | "suggestion" | "request" | "esic", subject: "", description: "", isAnonymous: false, requesterName: "", requesterEmail: "", isConfidential: false });
+  const createManifestation = trpc.publicServices.ouvidoria.create.useMutation();
+  const { data: trackData, refetch: refetchTrack } = trpc.publicServices.ouvidoria.publicTrack.useQuery({ nup: trackNup }, { enabled: false });
 
   const { data: services = [], isLoading } = trpc.cidadao.listServices.useQuery({
     search: search || undefined,
@@ -146,6 +152,8 @@ export default function CentralCidadao() {
                 { key: "services", label: "Serviços" },
                 { key: "profiles", label: "Perfis" },
                 { key: "organs", label: "Órgãos" },
+                { key: "ouvidoria", label: "Ouvidoria" },
+                { key: "acompanhar", label: "Acompanhar" },
                 { key: "help", label: "Ajuda" },
               ].map((tab) => (
                 <button
@@ -193,6 +201,8 @@ export default function CentralCidadao() {
                 { key: "services", label: "Serviços" },
                 { key: "profiles", label: "Perfis" },
                 { key: "organs", label: "Órgãos" },
+                { key: "ouvidoria", label: "Ouvidoria" },
+                { key: "acompanhar", label: "Acompanhar" },
                 { key: "help", label: "Ajuda" },
               ].map((tab) => (
                 <button
@@ -526,6 +536,140 @@ export default function CentralCidadao() {
             </div>
           </section>
         )}
+
+        {/* OUVIDORIA */}
+        {activeTab === "ouvidoria" && (
+          <section className="max-w-3xl mx-auto px-4 py-10">
+            <div className="mb-8">
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Ouvidoria / e-SIC</h2>
+              <p className="text-gray-500 text-sm">Registre reclamações, denúncias, elogios, sugestões ou pedidos de informação (e-SIC). Sua manifestação será tratada com sigilo e respondida dentro do prazo legal.</p>
+            </div>
+            {ouvidoriaStep === "success" ? (
+              <div className="bg-green-50 border border-green-200 rounded-2xl p-8 text-center">
+                <CheckCircle2 className="w-12 h-12 text-green-600 mx-auto mb-4" />
+                <h3 className="text-xl font-bold text-green-900 mb-2">Manifestação Registrada!</h3>
+                <p className="text-green-700 mb-4">Seu NUP de acompanhamento é:</p>
+                <div className="bg-white rounded-xl border border-green-300 px-6 py-4 inline-block mb-6">
+                  <span className="text-2xl font-mono font-bold text-green-800">{ouvidoriaNup}</span>
+                </div>
+                <p className="text-sm text-green-600 mb-6">Guarde este número para acompanhar o status da sua manifestação na aba "Acompanhar".</p>
+                <button onClick={() => { setOuvidoriaStep("form"); setOuvidoriaForm({ type: "complaint", subject: "", description: "", isAnonymous: false, requesterName: "", requesterEmail: "", isConfidential: false }); }} className="px-6 py-2.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors">Nova Manifestação</button>
+              </div>
+            ) : (
+              <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-5">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Manifestação *</label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {([
+                      { value: "complaint", label: "Reclamação", color: "border-orange-300 bg-orange-50 text-orange-700" },
+                      { value: "denounce", label: "Denúncia", color: "border-red-300 bg-red-50 text-red-700" },
+                      { value: "praise", label: "Elogio", color: "border-green-300 bg-green-50 text-green-700" },
+                      { value: "suggestion", label: "Sugestão", color: "border-blue-300 bg-blue-50 text-blue-700" },
+                      { value: "request", label: "Solicitação", color: "border-indigo-300 bg-indigo-50 text-indigo-700" },
+                      { value: "esic", label: "e-SIC (LAI)", color: "border-purple-300 bg-purple-50 text-purple-700" },
+                    ] as const).map((t) => (
+                      <button key={t.value} onClick={() => setOuvidoriaForm(f => ({ ...f, type: t.value }))} className={cn("px-3 py-2 rounded-lg border text-sm font-medium transition-all", ouvidoriaForm.type === t.value ? t.color + " ring-2 ring-offset-1 ring-blue-400" : "border-gray-200 text-gray-600 hover:border-gray-300")}>{t.label}</button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Assunto *</label>
+                  <input value={ouvidoriaForm.subject} onChange={e => setOuvidoriaForm(f => ({ ...f, subject: e.target.value }))} placeholder="Descreva brevemente o assunto" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Descrição detalhada *</label>
+                  <textarea value={ouvidoriaForm.description} onChange={e => setOuvidoriaForm(f => ({ ...f, description: e.target.value }))} rows={5} placeholder="Descreva com detalhes sua manifestação..." className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" />
+                </div>
+                <div className="flex items-center gap-3">
+                  <input type="checkbox" id="anon" checked={ouvidoriaForm.isAnonymous} onChange={e => setOuvidoriaForm(f => ({ ...f, isAnonymous: e.target.checked }))} className="rounded" />
+                  <label htmlFor="anon" className="text-sm text-gray-700">Manifestação anônima</label>
+                </div>
+                {!ouvidoriaForm.isAnonymous && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Nome completo</label>
+                      <input value={ouvidoriaForm.requesterName} onChange={e => setOuvidoriaForm(f => ({ ...f, requesterName: e.target.value }))} placeholder="Seu nome" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
+                      <input type="email" value={ouvidoriaForm.requesterEmail} onChange={e => setOuvidoriaForm(f => ({ ...f, requesterEmail: e.target.value }))} placeholder="seu@email.com" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                    </div>
+                  </div>
+                )}
+                <div className="flex items-center gap-3">
+                  <input type="checkbox" id="conf" checked={ouvidoriaForm.isConfidential} onChange={e => setOuvidoriaForm(f => ({ ...f, isConfidential: e.target.checked }))} className="rounded" />
+                  <label htmlFor="conf" className="text-sm text-gray-700">Tratar com sigilo</label>
+                </div>
+                <button
+                  disabled={!ouvidoriaForm.subject || !ouvidoriaForm.description || createManifestation.isPending}
+                  onClick={async () => {
+                    try {
+                      const result = await createManifestation.mutateAsync({
+                        type: ouvidoriaForm.type,
+                        subject: ouvidoriaForm.subject,
+                        description: ouvidoriaForm.description,
+                        isAnonymous: ouvidoriaForm.isAnonymous,
+                        requesterName: ouvidoriaForm.requesterName || undefined,
+                        requesterEmail: ouvidoriaForm.requesterEmail || undefined,
+                        isConfidential: ouvidoriaForm.isConfidential,
+                      });
+                      setOuvidoriaNup(result.nup);
+                      setOuvidoriaStep("success");
+                    } catch { alert("Erro ao registrar manifestação. Tente novamente."); }
+                  }}
+                  className="w-full py-3 bg-blue-700 text-white rounded-xl text-sm font-semibold hover:bg-blue-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {createManifestation.isPending ? "Enviando..." : "Registrar Manifestação"}
+                </button>
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* ACOMPANHAR */}
+        {activeTab === "acompanhar" && (
+          <section className="max-w-2xl mx-auto px-4 py-10">
+            <div className="mb-8">
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Acompanhar Manifestação</h2>
+              <p className="text-gray-500 text-sm">Informe o NUP recebido ao registrar sua manifestação na Ouvidoria.</p>
+            </div>
+            <div className="bg-white rounded-2xl border border-gray-200 p-6">
+              <div className="flex gap-3 mb-6">
+                <input value={trackNup} onChange={e => setTrackNup(e.target.value.toUpperCase())} placeholder="Ex: OUV-2025-123456" className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                <button disabled={!trackNup} onClick={() => refetchTrack()} className="px-5 py-2 bg-blue-700 text-white rounded-lg text-sm font-medium hover:bg-blue-800 transition-colors disabled:opacity-50">Consultar</button>
+              </div>
+              {trackData && (
+                trackData.found ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between"><span className="text-sm font-medium text-gray-500">NUP</span><span className="font-mono font-bold text-gray-900">{trackData.nup}</span></div>
+                    <div className="flex items-center justify-between"><span className="text-sm font-medium text-gray-500">Tipo</span><span className="text-sm text-gray-900 capitalize">{trackData.type}</span></div>
+                    <div className="flex items-center justify-between"><span className="text-sm font-medium text-gray-500">Assunto</span><span className="text-sm text-gray-900 text-right max-w-xs">{trackData.subject}</span></div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-500">Status</span>
+                      <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium", { "bg-blue-100 text-blue-700": trackData.status === "received", "bg-yellow-100 text-yellow-700": trackData.status === "in_analysis" || trackData.status === "in_progress", "bg-green-100 text-green-700": trackData.status === "answered", "bg-gray-100 text-gray-600": trackData.status === "archived" })}>
+                        {({ received: "Recebida", in_analysis: "Em Análise", in_progress: "Em Andamento", answered: "Respondida", archived: "Arquivada" } as Record<string, string>)[trackData.status as string] ?? trackData.status}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between"><span className="text-sm font-medium text-gray-500">Registrada em</span><span className="text-sm text-gray-900">{new Date(trackData.createdAt as string | number | Date).toLocaleDateString("pt-BR")}</span></div>
+                    {trackData.response && (
+                      <div className="mt-4 p-4 bg-green-50 rounded-xl border border-green-200">
+                        <p className="text-xs font-semibold text-green-700 mb-2">Resposta da Ouvidoria:</p>
+                        <p className="text-sm text-green-900">{trackData.response}</p>
+                        {trackData.respondedAt && <p className="text-xs text-green-600 mt-2">Respondido em {new Date(trackData.respondedAt as string | number | Date).toLocaleDateString("pt-BR")}</p>}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-6">
+                    <Info className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                    <p className="text-gray-500 text-sm">Nenhuma manifestação encontrada com o NUP informado.</p>
+                  </div>
+                )
+              )}
+            </div>
+          </section>
+        )}
+
       </main>
 
       {/* ═══════════════════════════════════════════════════════════════════════

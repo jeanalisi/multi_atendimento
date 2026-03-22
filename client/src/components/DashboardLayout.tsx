@@ -33,7 +33,7 @@ import {
   Building2, Settings, ChevronDown, ChevronRight, BarChart3, Tag,
   Link2, Globe, HelpCircle, UserCog, Shield, Layers, Briefcase,
   Scale, BookOpen, Archive, Star, Plus, Wrench, FileText as FileTextIcon,
-  Activity,
+  Activity, GitBranch, TrendingUp, MapPin, Library,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -88,8 +88,13 @@ const STATIC_GROUPS: NavGroup[] = [
       { icon: FolderOpen, label: "Processos Adm.", path: "/processes" },
       { icon: FileText, label: "Documentos Oficiais", path: "/documents" },
       { icon: Megaphone, label: "Ouvidoria", path: "/ombudsman" },
+      { icon: Megaphone, label: "Ouvidoria (Admin)", path: "/ouvidoria-admin" },
       { icon: BookOpen, label: "Modelos", path: "/templates" },
       { icon: Building2, label: "Setores", path: "/sectors" },
+      { icon: GitBranch, label: "Workflows", path: "/workflow" },
+      { icon: TrendingUp, label: "Dashboard Executivo", path: "/executive-dashboard" },
+      { icon: MapPin, label: "Geo Monitor", path: "/geo-monitor" },
+      { icon: Library, label: "Base de Conhecimento", path: "/knowledge-base" },
     ],
   },
   {

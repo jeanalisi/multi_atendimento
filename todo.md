@@ -559,3 +559,58 @@
 
 ### Testes
 - [x] 73 testes passando, TypeScript 0 erros
+
+## Fase 31: Evolução Completa CAIUS — Especificação 40-A
+
+### Banco de Dados — Novos Módulos
+- [x] Tabelas: workflowDefinitions, workflowSteps, workflowStepRules, workflowTransitions
+- [x] Tabelas: workflowInstances, workflowInstanceSteps, workflowDeadlines, workflowEvents
+- [x] Tabelas: documentVersions, documentReadLogs, documentNumberSequences
+- [x] Tabelas: manifestationTypes, manifestationStatusHistory, manifestationDeadlines, manifestationResponses
+- [x] Tabelas: geoPoints, geoEvents, geoAttachments
+- [x] Tabelas: knowledgeArticles, knowledgeCategories
+- [x] Tabelas: agentStatus, conversationTransfers, quickReplies, attendanceMetricsSnapshots
+- [x] Tabelas: ombudsmanManifestations e relacionadas (28 novas tabelas no total)
+
+### Backend — Motor de Workflow Visual
+- [x] Router: workflow.definitions (CRUD definições, etapas, regras, transições)
+- [x] Router: workflow.instances (iniciar, avançar etapa, encerrar, histórico)
+- [x] workflow.sla (checkOverdue, listOverdue, resolve)
+- [x] Vínculo workflow ↔ serviceType
+
+### Backend — Gestão Documental Avançada
+- [x] Router: documents (versions, numberSequences, readLogs) em routers-documents.ts
+
+### Backend — Dashboard Executivo
+- [x] Router: publicServices.dashboard (kpis, byChannel, bySector, timeSeries, overdueProtocols)
+
+### Backend — Ouvidoria / e-SIC
+- [x] Router: publicServices.ouvidoria (types, list, get, create, updateStatus, respond, publicTrack)
+
+### Backend — Georreferenciamento
+- [x] Router: publicServices.geo (points.list, points.create, events.list, events.get, events.create, events.updateStatus, mapData)
+
+### Backend — Base de Conhecimento
+- [x] Router: publicServices.knowledge (categories.list, categories.upsert, articles.list, articles.publicList, articles.get, articles.upsert, articles.markHelpful)
+
+### Backend — Atendimento Humano Avançado
+- [x] Router: publicServices.agentStatus (get, update, listOnline)
+- [x] Router: publicServices.transfers (create, accept, reject)
+- [x] Router: publicServices.quickReplies (list, upsert, delete, recordUsage)
+- [x] Router: publicServices.metrics (snapshot, listByAgent)
+
+### Frontend — Central do Cidadão Fortalecida
+- [x] Abas Ouvidoria e Acompanhar adicionadas na CentralCidadao.tsx
+- [x] Formulário de manifestação pública (tipo, assunto, descrição, anonimato, sigilo)
+- [x] Acompanhamento de manifestação por NUP (busca pública sem login)
+
+### Frontend — Área Interna
+- [x] Página: WorkflowDesigner (/workflow) — CRUD de workflows com canvas visual
+- [x] Página: ExecutiveDashboard (/executive-dashboard) — KPIs globais, gráficos por canal/setor, séries temporais
+- [x] Página: OuvidoriaAdmin (/ouvidoria-admin) — listagem, filtros, detalhe, resposta, prazo
+- [x] Página: GeoMonitor (/geo-monitor) — mapa de ocorrências com filtros territoriais
+- [x] Página: KnowledgeBase (/knowledge-base) — artigos, categorias, busca, editor
+- [x] Menu lateral: 4 novos itens no grupo Gestão Pública (Workflows, Dashboard Executivo, Geo Monitor, Base de Conhecimento)
+
+### Testes
+- [x] 73 testes passando, TypeScript 0 erros

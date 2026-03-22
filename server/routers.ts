@@ -60,6 +60,9 @@ import { customModulesRouter } from "./routers-modules";
 import { verificationRouter } from "./routers-verification";
 import { orgUnitsRouter, positionsRouter, userAllocationsRouter, orgInvitesRouter } from "./routers-org";
 import { omnichannelRouter } from "./routers-omnichannel";
+import { workflowRouter } from "./routers-workflow";
+import { documentsRouter } from "./routers-documents";
+import { publicServicesRouter } from "./routers-public-services";
 import {
   serviceTypesRouter,
   serviceSubjectsRouter,
@@ -464,6 +467,9 @@ export const appRouter = router({
   orgInvites: orgInvitesRouter,
   // ── Omnichannel ───────────────────────────────────────────────────────────
   omnichannel: omnichannelRouter,
+  workflow: workflowRouter,
+  docs: documentsRouter,
+  publicServices: publicServicesRouter,
   // ── Analytics ─────────────────────────────────────────────────────────────
    analytics: router({
     overview: protectedProcedure

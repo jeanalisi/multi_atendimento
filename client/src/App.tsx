@@ -41,6 +41,11 @@ import CustomModuleRecords from "./pages/CustomModuleRecords";
 import VerifyDocument from "./pages/VerifyDocument";
 import DocumentSignaturesPage from "./pages/DocumentSignatures";
 import ChannelHealth from "./pages/ChannelHealth";
+import WorkflowDesigner from "./pages/WorkflowDesigner";
+import ExecutiveDashboard from "./pages/ExecutiveDashboard";
+import OuvidoriaAdmin from "./pages/OuvidoriaAdmin";
+import GeoMonitor from "./pages/GeoMonitor";
+import KnowledgeBase from "./pages/KnowledgeBase";
 
 function ProtocolDetailWrapper() {
   const params = useParams<{ id: string }>();
@@ -106,6 +111,12 @@ function Router() {
       <Route path={"/audit"} component={Audit} />
       <Route path={"/ai-settings"} component={AiSettings} />
       <Route path={"/channel-health"} component={ChannelHealth} />
+      {/* Fase 31 — Novos módulos */}
+      <Route path={"/workflow"} component={WorkflowDesigner} />
+      <Route path={"/executive-dashboard"} component={ExecutiveDashboard} />
+      <Route path={"/ouvidoria-admin"} component={OuvidoriaAdmin} />
+      <Route path={"/geo-monitor"} component={GeoMonitor} />
+      <Route path={"/knowledge-base"} component={KnowledgeBase} />
 
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />

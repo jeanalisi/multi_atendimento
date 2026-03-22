@@ -1153,3 +1153,502 @@ export const audioTranscriptions = mysqlTable("audioTranscriptions", {
 }));
 export type AudioTranscription = typeof audioTranscriptions.$inferSelect;
 export type InsertAudioTranscription = typeof audioTranscriptions.$inferInsert;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// FASE 31 — Especificação 40-A: Workflow, Documentos, Ouvidoria, Geo, Knowledge
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── Service Categories (Categorias de Serviços) ──────────────────────────────
+export const serviceCategories = mysqlTable("serviceCategories", {
+  id: int("id").primaryKey().autoincrement(),
+  name: varchar("name", { length: 200 }).notNull(),
+  slug: varchar("slug", { length: 200 }).notNull(),
+  description: text("description"),
+  icon: varchar("icon", { length: 100 }),
+  color: varchar("color", { length: 50 }),
+  isActive: boolean("isActive").default(true),
+  sortOrder: int("sortOrder").default(0),
+  createdAt: timestamp("createdAt").defaultNow(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow(),
+});
+
+// ─── Service Publications (Publicação de Serviços) ────────────────────────────
+export const servicePublications = mysqlTable("servicePublications", {
+  id: int("id").primaryKey().autoincrement(),
+  serviceTypeId: int("serviceTypeId").notNull(),
+  categoryId: int("categoryId"),
+  orgUnitId: int("orgUnitId"),
+  title: varchar("title", { length: 300 }).notNull(),
+  description: text("description"),
+  citizenDescription: text("citizenDescription"),
+  requirements: text("requirements"),
+  estimatedTime: varchar("estimatedTime", { length: 100 }),
+  cost: varchar("cost", { length: 100 }),
+  isPublic: boolean("isPublic").default(true),
+  isActive: boolean("isActive").default(true),
+  publishedAt: timestamp("publishedAt"),
+  unpublishedAt: timestamp("unpublishedAt"),
+  publishedById: int("publishedById"),
+  sortOrder: int("sortOrder").default(0),
+  createdAt: timestamp("createdAt").defaultNow(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow(),
+});
+
+// ─── Service FAQs (Perguntas Frequentes por Serviço) ──────────────────────────
+export const serviceFaqs = mysqlTable("serviceFaqs", {
+  id: int("id").primaryKey().autoincrement(),
+  serviceTypeId: int("serviceTypeId").notNull(),
+  question: text("question").notNull(),
+  answer: text("answer").notNull(),
+  sortOrder: int("sortOrder").default(0),
+  isActive: boolean("isActive").default(true),
+  createdAt: timestamp("createdAt").defaultNow(),
+});
+
+// ─── Service Checklists (Checklist de Documentos por Serviço) ─────────────────
+export const serviceChecklists = mysqlTable("serviceChecklists", {
+  id: int("id").primaryKey().autoincrement(),
+  serviceTypeId: int("serviceTypeId").notNull(),
+  item: varchar("item", { length: 500 }).notNull(),
+  description: text("description"),
+  isRequired: boolean("isRequired").default(true),
+  sortOrder: int("sortOrder").default(0),
+  createdAt: timestamp("createdAt").defaultNow(),
+});
+
+// ─── Form Field Options (Opções para campos select/radio/checkbox) ─────────────
+export const formFieldOptions = mysqlTable("formFieldOptions", {
+  id: int("id").primaryKey().autoincrement(),
+  fieldId: int("fieldId").notNull(),
+  label: varchar("label", { length: 300 }).notNull(),
+  value: varchar("value", { length: 300 }).notNull(),
+  sortOrder: int("sortOrder").default(0),
+  isActive: boolean("isActive").default(true),
+});
+
+// ─── Form Submissions (Respostas de Formulários) ──────────────────────────────
+export const formSubmissions = mysqlTable("formSubmissions", {
+  id: int("id").primaryKey().autoincrement(),
+  formTemplateId: int("formTemplateId").notNull(),
+  protocolId: int("protocolId"),
+  contactId: int("contactId"),
+  submittedById: int("submittedById"),
+  nup: varchar("nup", { length: 50 }),
+  status: mysqlEnum("status", ["draft", "submitted", "processing", "completed", "rejected"]).default("submitted"),
+  submittedAt: timestamp("submittedAt").defaultNow(),
+  createdAt: timestamp("createdAt").defaultNow(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow(),
+});
+
+// ─── Form Submission Values (Valores das Respostas) ───────────────────────────
+export const formSubmissionValues = mysqlTable("formSubmissionValues", {
+  id: int("id").primaryKey().autoincrement(),
+  submissionId: int("submissionId").notNull(),
+  fieldId: int("fieldId").notNull(),
+  fieldKey: varchar("fieldKey", { length: 200 }).notNull(),
+  value: text("value"),
+  fileUrl: text("fileUrl"),
+  createdAt: timestamp("createdAt").defaultNow(),
+});
+
+// ─── Workflow Definitions (Definições de Workflow) ────────────────────────────
+export const workflowDefinitions = mysqlTable("workflowDefinitions", {
+  id: int("id").primaryKey().autoincrement(),
+  name: varchar("name", { length: 300 }).notNull(),
+  description: text("description"),
+  serviceTypeId: int("serviceTypeId"),
+  isActive: boolean("isActive").default(true),
+  isDefault: boolean("isDefault").default(false),
+  version: int("version").default(1),
+  createdById: int("createdById"),
+  createdAt: timestamp("createdAt").defaultNow(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow(),
+});
+
+// ─── Workflow Steps (Etapas do Workflow) ──────────────────────────────────────
+export const workflowSteps = mysqlTable("workflowSteps", {
+  id: int("id").primaryKey().autoincrement(),
+  workflowId: int("workflowId").notNull(),
+  name: varchar("name", { length: 300 }).notNull(),
+  description: text("description"),
+  stepOrder: int("stepOrder").notNull(),
+  stepType: mysqlEnum("stepType", ["start", "task", "decision", "approval", "notification", "document", "end"]).default("task"),
+  responsibleRole: varchar("responsibleRole", { length: 100 }),
+  responsibleOrgUnitId: int("responsibleOrgUnitId"),
+  slaHours: int("slaHours"),
+  isRequired: boolean("isRequired").default(true),
+  generateDocument: boolean("generateDocument").default(false),
+  documentTemplateId: int("documentTemplateId"),
+  requiresSignature: boolean("requiresSignature").default(false),
+  sendNotification: boolean("sendNotification").default(false),
+  notificationTemplate: text("notificationTemplate"),
+  positionX: int("positionX").default(0),
+  positionY: int("positionY").default(0),
+  createdAt: timestamp("createdAt").defaultNow(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow(),
+});
+
+// ─── Workflow Step Rules (Regras de Entrada/Saída por Etapa) ──────────────────
+export const workflowStepRules = mysqlTable("workflowStepRules", {
+  id: int("id").primaryKey().autoincrement(),
+  stepId: int("stepId").notNull(),
+  ruleType: mysqlEnum("ruleType", ["entry", "exit", "condition"]).default("condition"),
+  field: varchar("field", { length: 200 }),
+  operator: varchar("operator", { length: 50 }),
+  value: varchar("value", { length: 500 }),
+  action: varchar("action", { length: 200 }),
+  createdAt: timestamp("createdAt").defaultNow(),
+});
+
+// ─── Workflow Transitions (Transições entre Etapas) ──────────────────────────
+export const workflowTransitions = mysqlTable("workflowTransitions", {
+  id: int("id").primaryKey().autoincrement(),
+  workflowId: int("workflowId").notNull(),
+  fromStepId: int("fromStepId").notNull(),
+  toStepId: int("toStepId").notNull(),
+  label: varchar("label", { length: 200 }),
+  condition: text("condition"),
+  isDefault: boolean("isDefault").default(false),
+  createdAt: timestamp("createdAt").defaultNow(),
+});
+
+// ─── Workflow Instances (Execuções de Workflow) ───────────────────────────────
+export const workflowInstances = mysqlTable("workflowInstances", {
+  id: int("id").primaryKey().autoincrement(),
+  workflowId: int("workflowId").notNull(),
+  entityType: varchar("entityType", { length: 100 }).notNull(),
+  entityId: int("entityId").notNull(),
+  nup: varchar("nup", { length: 50 }),
+  currentStepId: int("currentStepId"),
+  status: mysqlEnum("status", ["active", "completed", "cancelled", "suspended", "overdue"]).default("active"),
+  startedAt: timestamp("startedAt").defaultNow(),
+  completedAt: timestamp("completedAt"),
+  startedById: int("startedById"),
+  createdAt: timestamp("createdAt").defaultNow(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow(),
+});
+
+// ─── Workflow Instance Steps (Histórico de Etapas Executadas) ─────────────────
+export const workflowInstanceSteps = mysqlTable("workflowInstanceSteps", {
+  id: int("id").primaryKey().autoincrement(),
+  instanceId: int("instanceId").notNull(),
+  stepId: int("stepId").notNull(),
+  status: mysqlEnum("status", ["pending", "in_progress", "completed", "skipped", "rejected"]).default("pending"),
+  assignedToId: int("assignedToId"),
+  startedAt: timestamp("startedAt"),
+  completedAt: timestamp("completedAt"),
+  dueAt: timestamp("dueAt"),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow(),
+});
+
+// ─── Workflow Deadlines (Prazos e SLA) ───────────────────────────────────────
+export const workflowDeadlines = mysqlTable("workflowDeadlines", {
+  id: int("id").primaryKey().autoincrement(),
+  instanceId: int("instanceId").notNull(),
+  instanceStepId: int("instanceStepId"),
+  dueAt: timestamp("dueAt").notNull(),
+  alertSentAt: timestamp("alertSentAt"),
+  isOverdue: boolean("isOverdue").default(false),
+  resolvedAt: timestamp("resolvedAt"),
+  createdAt: timestamp("createdAt").defaultNow(),
+});
+
+// ─── Workflow Events (Log de Eventos do Workflow) ─────────────────────────────
+export const workflowEvents = mysqlTable("workflowEvents", {
+  id: int("id").primaryKey().autoincrement(),
+  instanceId: int("instanceId").notNull(),
+  eventType: varchar("eventType", { length: 100 }).notNull(),
+  fromStepId: int("fromStepId"),
+  toStepId: int("toStepId"),
+  performedById: int("performedById"),
+  notes: text("notes"),
+  metadata: json("metadata"),
+  createdAt: timestamp("createdAt").defaultNow(),
+});
+
+// ─── Document Versions (Versões de Documentos) ───────────────────────────────
+export const documentVersions = mysqlTable("documentVersions", {
+  id: int("id").primaryKey().autoincrement(),
+  documentId: int("documentId").notNull(),
+  documentType: varchar("documentType", { length: 100 }).notNull(),
+  version: int("version").notNull(),
+  content: text("content"),
+  htmlContent: text("htmlContent"),
+  pdfUrl: text("pdfUrl"),
+  changeDescription: varchar("changeDescription", { length: 500 }),
+  createdById: int("createdById"),
+  createdAt: timestamp("createdAt").defaultNow(),
+});
+
+// ─── Document Number Sequences (Numeração Automática) ────────────────────────
+export const documentNumberSequences = mysqlTable("documentNumberSequences", {
+  id: int("id").primaryKey().autoincrement(),
+  documentType: varchar("documentType", { length: 100 }).notNull(),
+  orgUnitId: int("orgUnitId"),
+  year: int("year").notNull(),
+  lastNumber: int("lastNumber").default(0),
+  prefix: varchar("prefix", { length: 50 }),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow(),
+});
+
+// ─── Document Read Logs (Logs de Leitura de Documentos) ──────────────────────
+export const documentReadLogs = mysqlTable("documentReadLogs", {
+  id: int("id").primaryKey().autoincrement(),
+  documentId: int("documentId").notNull(),
+  documentType: varchar("documentType", { length: 100 }).notNull(),
+  readById: int("readById"),
+  readByIp: varchar("readByIp", { length: 50 }),
+  isPublicAccess: boolean("isPublicAccess").default(false),
+  createdAt: timestamp("createdAt").defaultNow(),
+});
+
+// ─── Manifestation Types (Tipos de Manifestação de Ouvidoria) ─────────────────
+export const manifestationTypes = mysqlTable("manifestationTypes", {
+  id: int("id").primaryKey().autoincrement(),
+  name: varchar("name", { length: 200 }).notNull(),
+  code: varchar("code", { length: 50 }).notNull(),
+  description: text("description"),
+  deadlineDays: int("deadlineDays").default(30),
+  allowAnonymous: boolean("allowAnonymous").default(true),
+  requiresSecrecy: boolean("requiresSecrecy").default(false),
+  isEsic: boolean("isEsic").default(false),
+  isActive: boolean("isActive").default(true),
+  createdAt: timestamp("createdAt").defaultNow(),
+});
+
+// ─── Manifestation Status History (Histórico de Status) ──────────────────────
+export const manifestationStatusHistory = mysqlTable("manifestationStatusHistory", {
+  id: int("id").primaryKey().autoincrement(),
+  manifestationId: int("manifestationId").notNull(),
+  fromStatus: varchar("fromStatus", { length: 100 }),
+  toStatus: varchar("toStatus", { length: 100 }).notNull(),
+  notes: text("notes"),
+  changedById: int("changedById"),
+  createdAt: timestamp("createdAt").defaultNow(),
+});
+
+// ─── Manifestation Deadlines (Prazos de Manifestação) ────────────────────────
+export const manifestationDeadlines = mysqlTable("manifestationDeadlines", {
+  id: int("id").primaryKey().autoincrement(),
+  manifestationId: int("manifestationId").notNull(),
+  dueAt: timestamp("dueAt").notNull(),
+  extensionDays: int("extensionDays").default(0),
+  extensionReason: text("extensionReason"),
+  isOverdue: boolean("isOverdue").default(false),
+  alertSentAt: timestamp("alertSentAt"),
+  createdAt: timestamp("createdAt").defaultNow(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow(),
+});
+
+// ─── Manifestation Responses (Respostas às Manifestações) ────────────────────
+export const manifestationResponses = mysqlTable("manifestationResponses", {
+  id: int("id").primaryKey().autoincrement(),
+  manifestationId: int("manifestationId").notNull(),
+  responseType: mysqlEnum("responseType", ["internal", "citizen", "forward", "archive"]).default("internal"),
+  content: text("content").notNull(),
+  attachmentUrl: text("attachmentUrl"),
+  respondedById: int("respondedById"),
+  forwardedToOrgUnitId: int("forwardedToOrgUnitId"),
+  isPublic: boolean("isPublic").default(false),
+  createdAt: timestamp("createdAt").defaultNow(),
+});
+
+// ─── Geo Points (Pontos Georreferenciados) ────────────────────────────────────
+export const geoPoints = mysqlTable("geoPoints", {
+  id: int("id").primaryKey().autoincrement(),
+  entityType: varchar("entityType", { length: 100 }),
+  entityId: int("entityId"),
+  nup: varchar("nup", { length: 50 }),
+  latitude: varchar("latitude", { length: 30 }).notNull(),
+  longitude: varchar("longitude", { length: 30 }).notNull(),
+  address: text("address"),
+  neighborhood: varchar("neighborhood", { length: 200 }),
+  zone: varchar("zone", { length: 200 }),
+  city: varchar("city", { length: 200 }),
+  state: varchar("state", { length: 50 }),
+  accuracy: varchar("accuracy", { length: 50 }),
+  createdById: int("createdById"),
+  createdAt: timestamp("createdAt").defaultNow(),
+});
+
+// ─── Geo Events (Ocorrências Georreferenciadas) ───────────────────────────────
+export const geoEvents = mysqlTable("geoEvents", {
+  id: int("id").primaryKey().autoincrement(),
+  geoPointId: int("geoPointId").notNull(),
+  title: varchar("title", { length: 300 }).notNull(),
+  description: text("description"),
+  eventType: varchar("eventType", { length: 100 }),
+  severity: mysqlEnum("severity", ["low", "medium", "high", "critical"]).default("medium"),
+  status: mysqlEnum("status", ["open", "in_progress", "resolved", "closed"]).default("open"),
+  orgUnitId: int("orgUnitId"),
+  nup: varchar("nup", { length: 50 }),
+  reportedById: int("reportedById"),
+  resolvedAt: timestamp("resolvedAt"),
+  createdAt: timestamp("createdAt").defaultNow(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow(),
+});
+
+// ─── Geo Attachments (Imagens e Evidências Georreferenciadas) ─────────────────
+export const geoAttachments = mysqlTable("geoAttachments", {
+  id: int("id").primaryKey().autoincrement(),
+  geoEventId: int("geoEventId").notNull(),
+  fileUrl: text("fileUrl").notNull(),
+  fileKey: varchar("fileKey", { length: 500 }),
+  mimeType: varchar("mimeType", { length: 100 }),
+  description: varchar("description", { length: 500 }),
+  uploadedById: int("uploadedById"),
+  createdAt: timestamp("createdAt").defaultNow(),
+});
+
+// ─── Knowledge Categories (Categorias da Base de Conhecimento) ────────────────
+export const knowledgeCategories = mysqlTable("knowledgeCategories", {
+  id: int("id").primaryKey().autoincrement(),
+  name: varchar("name", { length: 200 }).notNull(),
+  slug: varchar("slug", { length: 200 }).notNull(),
+  description: text("description"),
+  parentId: int("parentId"),
+  icon: varchar("icon", { length: 100 }),
+  sortOrder: int("sortOrder").default(0),
+  isActive: boolean("isActive").default(true),
+  createdAt: timestamp("createdAt").defaultNow(),
+});
+
+// ─── Knowledge Articles (Artigos da Base de Conhecimento) ─────────────────────
+export const knowledgeArticles = mysqlTable("knowledgeArticles", {
+  id: int("id").primaryKey().autoincrement(),
+  categoryId: int("categoryId"),
+  title: varchar("title", { length: 500 }).notNull(),
+  slug: varchar("slug", { length: 500 }).notNull(),
+  summary: text("summary"),
+  content: text("content").notNull(),
+  tags: json("tags"),
+  isPublic: boolean("isPublic").default(false),
+  isActive: boolean("isActive").default(true),
+  viewCount: int("viewCount").default(0),
+  helpfulCount: int("helpfulCount").default(0),
+  notHelpfulCount: int("notHelpfulCount").default(0),
+  createdById: int("createdById"),
+  updatedById: int("updatedById"),
+  publishedAt: timestamp("publishedAt"),
+  createdAt: timestamp("createdAt").defaultNow(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow(),
+});
+
+// ─── Knowledge Tags (Tags da Base de Conhecimento) ────────────────────────────
+export const knowledgeTags = mysqlTable("knowledgeTags", {
+  id: int("id").primaryKey().autoincrement(),
+  name: varchar("name", { length: 100 }).notNull(),
+  slug: varchar("slug", { length: 100 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow(),
+});
+
+// ─── Agent Status (Disponibilidade dos Agentes) ───────────────────────────────
+export const agentStatus = mysqlTable("agentStatus", {
+  id: int("id").primaryKey().autoincrement(),
+  userId: int("userId").notNull(),
+  status: mysqlEnum("status", ["online", "away", "busy", "offline"]).default("offline"),
+  statusMessage: varchar("statusMessage", { length: 300 }),
+  maxConcurrentChats: int("maxConcurrentChats").default(5),
+  currentChats: int("currentChats").default(0),
+  lastSeenAt: timestamp("lastSeenAt"),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow(),
+});
+
+// ─── Conversation Transfers (Transferências entre Agentes) ────────────────────
+export const conversationTransfers = mysqlTable("conversationTransfers", {
+  id: int("id").primaryKey().autoincrement(),
+  conversationId: int("conversationId").notNull(),
+  fromAgentId: int("fromAgentId"),
+  toAgentId: int("toAgentId"),
+  toOrgUnitId: int("toOrgUnitId"),
+  reason: text("reason"),
+  status: mysqlEnum("status", ["pending", "accepted", "rejected"]).default("pending"),
+  transferredAt: timestamp("transferredAt").defaultNow(),
+  acceptedAt: timestamp("acceptedAt"),
+  createdAt: timestamp("createdAt").defaultNow(),
+});
+
+// ─── Quick Replies (Respostas Rápidas) ───────────────────────────────────────
+export const quickReplies = mysqlTable("quickReplies", {
+  id: int("id").primaryKey().autoincrement(),
+  title: varchar("title", { length: 300 }).notNull(),
+  content: text("content").notNull(),
+  shortcut: varchar("shortcut", { length: 50 }),
+  channel: varchar("channel", { length: 50 }),
+  orgUnitId: int("orgUnitId"),
+  createdById: int("createdById"),
+  isGlobal: boolean("isGlobal").default(false),
+  usageCount: int("usageCount").default(0),
+  createdAt: timestamp("createdAt").defaultNow(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow(),
+});
+
+// ─── Attendance Metrics Snapshots (Snapshots de Métricas de Atendimento) ──────
+export const attendanceMetricsSnapshots = mysqlTable("attendanceMetricsSnapshots", {
+  id: int("id").primaryKey().autoincrement(),
+  agentId: int("agentId"),
+  orgUnitId: int("orgUnitId"),
+  snapshotDate: timestamp("snapshotDate").notNull(),
+  totalConversations: int("totalConversations").default(0),
+  resolvedConversations: int("resolvedConversations").default(0),
+  avgResponseTimeMs: int("avgResponseTimeMs").default(0),
+  avgHandleTimeMs: int("avgHandleTimeMs").default(0),
+  firstResponseTimeMs: int("firstResponseTimeMs").default(0),
+  satisfactionScore: int("satisfactionScore"),
+  createdAt: timestamp("createdAt").defaultNow(),
+});
+
+// ─── Satisfaction Surveys (Pesquisas de Satisfação) ───────────────────────────
+export const satisfactionSurveys = mysqlTable("satisfactionSurveys", {
+  id: int("id").primaryKey().autoincrement(),
+  title: varchar("title", { length: 300 }).notNull(),
+  description: text("description"),
+  questions: json("questions"),
+  triggerEvent: varchar("triggerEvent", { length: 100 }),
+  isActive: boolean("isActive").default(true),
+  createdById: int("createdById"),
+  createdAt: timestamp("createdAt").defaultNow(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow(),
+});
+
+// ─── Survey Answers (Respostas de Pesquisas) ─────────────────────────────────
+export const surveyAnswers = mysqlTable("surveyAnswers", {
+  id: int("id").primaryKey().autoincrement(),
+  surveyId: int("surveyId").notNull(),
+  dispatchId: int("dispatchId"),
+  conversationId: int("conversationId"),
+  contactId: int("contactId"),
+  answers: json("answers"),
+  score: int("score"),
+  comment: text("comment"),
+  submittedAt: timestamp("submittedAt").defaultNow(),
+  createdAt: timestamp("createdAt").defaultNow(),
+});
+
+// ─── Sensitive Access Logs (Logs de Acesso a Dados Sensíveis) ─────────────────
+export const sensitiveAccessLogs = mysqlTable("sensitiveAccessLogs", {
+  id: int("id").primaryKey().autoincrement(),
+  userId: int("userId").notNull(),
+  entityType: varchar("entityType", { length: 100 }).notNull(),
+  entityId: int("entityId").notNull(),
+  action: varchar("action", { length: 100 }).notNull(),
+  ipAddress: varchar("ipAddress", { length: 50 }),
+  userAgent: text("userAgent"),
+  justification: text("justification"),
+  createdAt: timestamp("createdAt").defaultNow(),
+});
+
+// ─── Compliance Events (Eventos de Conformidade) ─────────────────────────────
+export const complianceEvents = mysqlTable("complianceEvents", {
+  id: int("id").primaryKey().autoincrement(),
+  eventType: varchar("eventType", { length: 100 }).notNull(),
+  entityType: varchar("entityType", { length: 100 }),
+  entityId: int("entityId"),
+  nup: varchar("nup", { length: 50 }),
+  description: text("description"),
+  severity: mysqlEnum("severity", ["info", "warning", "critical"]).default("info"),
+  resolvedAt: timestamp("resolvedAt"),
+  createdAt: timestamp("createdAt").defaultNow(),
+});
