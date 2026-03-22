@@ -185,11 +185,19 @@ function LoginPage() {
         <div className="relative z-20 flex flex-col justify-between p-12 w-full">
           {/* Logo */}
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm border border-white/30 shadow-lg">
-              <Scale className="h-5 w-5 text-white" />
-            </div>
+            {(import.meta.env.VITE_APP_LOGO as string) ? (
+              <img
+                src={import.meta.env.VITE_APP_LOGO as string}
+                alt={import.meta.env.VITE_APP_TITLE as string ?? "CAIUS"}
+                className="h-10 w-10 rounded-xl object-contain bg-white/10 border border-white/30 p-1"
+              />
+            ) : (
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm border border-white/30 shadow-lg">
+                <Scale className="h-5 w-5 text-white" />
+              </div>
+            )}
             <div>
-              <span className="text-xl font-bold text-white tracking-tight">CAIUS</span>
+              <span className="text-xl font-bold text-white tracking-tight">{(import.meta.env.VITE_APP_TITLE as string) ?? "CAIUS"}</span>
               <p className="text-xs text-blue-200/80">Plataforma Omnichannel</p>
             </div>
           </div>
@@ -239,11 +247,19 @@ function LoginPage() {
       <div className="flex flex-1 flex-col items-center justify-center bg-gray-50 px-6 py-8 overflow-y-auto">
         {/* Mobile logo */}
         <div className="mb-6 flex flex-col items-center gap-2 lg:hidden">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-700 shadow-lg">
-            <Scale className="h-7 w-7 text-white" />
-          </div>
+          {(import.meta.env.VITE_APP_LOGO as string) ? (
+            <img
+              src={import.meta.env.VITE_APP_LOGO as string}
+              alt={import.meta.env.VITE_APP_TITLE as string ?? "CAIUS"}
+              className="h-14 w-14 rounded-2xl object-contain shadow-lg"
+            />
+          ) : (
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-700 shadow-lg">
+              <Scale className="h-7 w-7 text-white" />
+            </div>
+          )}
           <div className="text-center">
-            <h1 className="text-2xl font-bold text-gray-900">CAIUS</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{(import.meta.env.VITE_APP_TITLE as string) ?? "CAIUS"}</h1>
             <p className="text-xs text-gray-500">Plataforma Pública Omnichannel</p>
           </div>
         </div>
@@ -416,12 +432,20 @@ export default function OmniLayout({ children, title, fullHeight }: OmniLayoutPr
           {/* Logo + nome */}
           <div className="flex h-14 items-center gap-3 border-b border-sidebar-border px-4">
             <Link href="/dashboard">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary shadow-md shadow-primary/30 cursor-pointer hover:opacity-90 transition-opacity">
-                <Scale className="h-4 w-4 text-primary-foreground" />
-              </div>
+              {(import.meta.env.VITE_APP_LOGO as string) ? (
+                <img
+                  src={import.meta.env.VITE_APP_LOGO as string}
+                  alt={import.meta.env.VITE_APP_TITLE as string ?? "CAIUS"}
+                  className="h-8 w-8 shrink-0 rounded-lg object-contain cursor-pointer hover:opacity-90 transition-opacity"
+                />
+              ) : (
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary shadow-md shadow-primary/30 cursor-pointer hover:opacity-90 transition-opacity">
+                  <Scale className="h-4 w-4 text-primary-foreground" />
+                </div>
+              )}
             </Link>
             <div className="flex flex-col leading-tight">
-              <span className="text-sm font-bold tracking-tight text-sidebar-foreground">CAIUS</span>
+              <span className="text-sm font-bold tracking-tight text-sidebar-foreground">{(import.meta.env.VITE_APP_TITLE as string) ?? "CAIUS"}</span>
               <span className="text-[10px] text-sidebar-foreground/40">Plataforma Omnichannel</span>
             </div>
           </div>

@@ -9,6 +9,7 @@ import { storagePut } from "./storage";
 import {
   addToQueue,
   createMessage,
+  updateMessageDeliveryStatus,
   createNotification,
   createTicket,
   deleteAccount,
@@ -302,9 +303,10 @@ export const appRouter = router({
           content: input.content,
           senderAgentId: ctx.user.id,
           senderName: ctx.user.name ?? "Agent",
+          deliveryStatus: "pending",
         });
-
         // Send via channel
+        let sendError: string | undefined;
         if (conv.conversation.channel === "whatsapp" && conv.conversation.externalId) {
           try {
             await sendWhatsAppMessage(
@@ -312,18 +314,30 @@ export const appRouter = router({
               conv.conversation.externalId,
               input.content
             );
+            await updateMessageDeliveryStatus(msgId, "sent");
           } catch (e) {
+            sendError = String(e);
             console.error("[WhatsApp] Send error:", e);
+            await updateMessageDeliveryStatus(msgId, "failed", sendError);
           }
         } else if (conv.conversation.channel === "email" && conv.contact?.email) {
           const account = await import("./db").then(m => m.getAccountById(conv.conversation.accountId));
           if (account) {
             try {
               await sendEmail(account, conv.contact.email, conv.conversation.subject ?? "Re:", input.content);
+              await updateMessageDeliveryStatus(msgId, "sent");
             } catch (e) {
+              sendError = String(e);
               console.error("[Email] Send error:", e);
+              await updateMessageDeliveryStatus(msgId, "failed", sendError);
             }
+          } else {
+            sendError = "Conta de e-mail não encontrada";
+            await updateMessageDeliveryStatus(msgId, "failed", sendError);
           }
+        } else {
+          // Canal sem conector ativo — marcar como enviado (mensagem interna)
+          await updateMessageDeliveryStatus(msgId, "sent");
         }
 
         await updateConversation(input.conversationId, { lastMessageAt: new Date() });

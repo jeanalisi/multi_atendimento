@@ -684,3 +684,13 @@
 
 ## Correção: PDF original não aparece no download consolidado
 - [x] Corrigir merge do PDF original no downloadSignedPdf — busca por attachment ID, validação de header %PDF, logs de diagnóstico
+
+## Especificação 42: Correção de Envio, Chatbot, NUP Automático e Logo Fixa
+- [x] Diagnosticar e corrigir envio de mensagens por WhatsApp (WhatsAppConnector conectado ao Baileys real)
+- [x] Diagnosticar e corrigir envio de mensagens por e-mail
+- [x] Logs de envio com status: campo deliveryStatus na tabela messages
+- [x] Chatbot de entrada: resposta automática na primeira mensagem externa
+- [x] Geração automática de NUP ao receber conversa externa
+- [x] Criação automática de protocolo para conversa externa
+- [x] Envio automático de resposta com NUP ao usuário
+- [x] Logo dinâmica no sidebar e tela de login (VITE_APP_LOGO / VITE_APP_TITLE)

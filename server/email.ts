@@ -1,6 +1,9 @@
 import { ImapFlow } from "imapflow";
 import nodemailer from "nodemailer";
-import { createConversation, createMessage, updateAccount, upsertContact } from "./db";
+import { createMessage, updateAccount, upsertContact, getDb } from "./db";
+import { generateNup, createProtocol } from "./db-caius";
+import { conversations } from "../drizzle/schema";
+import { eq, and } from "drizzle-orm";
 import type { Account } from "../drizzle/schema";
 
 // Build TLS options that are permissive enough for self-signed certs and
@@ -114,15 +117,95 @@ export async function fetchEmails(account: Account): Promise<void> {
         const msgId = msg.envelope?.messageId ?? String(msg.uid);
 
         const contactId = await upsertContact({ name: fromName, email: fromEmail });
-        const convId = await createConversation({
-          accountId: account.id,
-          contactId,
-          channel: "email",
-          externalId: msgId,
-          subject: msgSubject,
-          status: "open",
-          lastMessageAt: msg.envelope?.date ?? new Date(),
-        });
+
+        // Verificar se já existe conversa para este e-mail (pelo externalId)
+        const db = await getDb();
+        let convId: number;
+
+        if (db) {
+          const existing = await db
+            .select({ id: conversations.id })
+            .from(conversations)
+            .where(
+              and(
+                eq(conversations.accountId, account.id),
+                eq(conversations.externalId, msgId)
+              )
+            )
+            .limit(1);
+
+          if (existing.length > 0) {
+            // Conversa já existe — apenas registrar a mensagem
+            convId = existing[0]!.id;
+          } else {
+            // Nova conversa — gerar NUP e criar protocolo
+            const nup = await generateNup();
+            const result = await db.insert(conversations).values({
+              accountId: account.id,
+              contactId,
+              channel: "email",
+              externalId: msgId,
+              nup,
+              subject: msgSubject,
+              status: "open",
+              lastMessageAt: msg.envelope?.date ?? new Date(),
+            });
+            convId = Number((result[0] as any).insertId);
+
+            // Criar protocolo vinculado
+            try {
+              await createProtocol({
+                conversationId: convId,
+                contactId,
+                subject: msgSubject,
+                requesterName: fromName,
+                requesterEmail: fromEmail,
+                type: "request",
+                channel: "email",
+                status: "open",
+                priority: "normal",
+                isConfidential: false,
+              });
+            } catch (err) {
+              console.error("[Email] Erro ao criar protocolo automático:", err);
+            }
+
+            // Enviar resposta automática com NUP
+            if (fromEmail) {
+              try {
+                const autoReply =
+                  `Olá, ${fromName}!\n\n` +
+                  `Recebemos sua mensagem com o assunto: "${msgSubject}"\n\n` +
+                  `Seu número de protocolo é: ${nup}\n\n` +
+                  `Em breve um atendente irá lhe responder. Para acompanhar seu atendimento, acesse nossa Central do Cidadão e informe o número do protocolo.\n\n` +
+                  `Atenciosamente,\nEquipe de Atendimento`;
+                await sendEmail(account, fromEmail, `Re: ${msgSubject} — Protocolo ${nup}`, autoReply);
+                await createMessage({
+                  conversationId: convId,
+                  direction: "outbound",
+                  type: "text",
+                  content: autoReply,
+                  senderName: "Sistema",
+                  deliveryStatus: "sent",
+                });
+              } catch (err) {
+                console.error("[Email] Erro ao enviar resposta automática:", err);
+              }
+            }
+          }
+        } else {
+          // Fallback sem DB — criar conversa simples
+          const { createConversation } = await import("./db");
+          convId = await createConversation({
+            accountId: account.id,
+            contactId,
+            channel: "email",
+            externalId: msgId,
+            subject: msgSubject,
+            status: "open",
+            lastMessageAt: msg.envelope?.date ?? new Date(),
+          });
+        }
 
         await createMessage({
           conversationId: convId,
@@ -132,6 +215,7 @@ export async function fetchEmails(account: Account): Promise<void> {
           content: `[E-mail] ${msgSubject}`,
           senderName: fromName,
           sentAt: msg.envelope?.date ?? new Date(),
+          deliveryStatus: "delivered",
         });
       }
     } finally {

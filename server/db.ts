@@ -261,6 +261,18 @@ export async function createMessage(data: InsertMessage): Promise<number> {
   const result = await db.insert(messages).values(data);
   return (result[0] as any).insertId;
 }
+export async function updateMessageDeliveryStatus(
+  messageId: number,
+  status: "pending" | "sent" | "delivered" | "failed",
+  error?: string
+): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(messages).set({
+    deliveryStatus: status,
+    deliveryError: error ?? null,
+  }).where(eq(messages.id, messageId));
+}
 
 export async function getMessagesByConversation(conversationId: number, limit = 50, offset = 0): Promise<Message[]> {
   const db = await getDb();

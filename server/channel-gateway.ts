@@ -12,6 +12,7 @@ import {
 } from "../drizzle/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { sendEmail, testSmtpConnection } from "./email";
+import { sendWhatsAppMessage } from "./whatsapp";
 import type { Account } from "../drizzle/schema";
 
 // ─── Interface base do conector ───────────────────────────────────────────────
@@ -185,7 +186,9 @@ export class WhatsAppConnector implements ChannelConnector {
   }
 
   async sendMessage(payload: SendMessagePayload): Promise<{ externalId: string; sentAt: Date }> {
-    // Delegates to existing WhatsApp send infrastructure in routers
+    // Usa o Baileys real para enviar a mensagem
+    const jid = payload.to.includes("@") ? payload.to : `${payload.to}@s.whatsapp.net`;
+    await sendWhatsAppMessage(this.accountId, jid, payload.content);
     const externalId = `wpp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     return { externalId, sentAt: new Date() };
   }

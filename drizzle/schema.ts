@@ -130,6 +130,8 @@ export const messages = mysqlTable("messages", {
   senderAgentId: int("senderAgentId"),
   isRead: boolean("isRead").default(false).notNull(),
   aiGenerated: boolean("aiGenerated").default(false).notNull(),
+  deliveryStatus: mysqlEnum("deliveryStatus", ["pending", "sent", "delivered", "failed"]).default("sent").notNull(),
+  deliveryError: text("deliveryError"),
   sentAt: timestamp("sentAt").defaultNow().notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });

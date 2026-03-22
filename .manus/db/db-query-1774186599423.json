@@ -1,0 +1,9 @@
+{
+  "query": "ALTER TABLE `messages` ADD `deliveryStatus` enum('pending','sent','delivered','failed') DEFAULT 'sent' NOT NULL;\nALTER TABLE `messages` ADD `deliveryError` text;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 6L37jFcA6BFgjQd.root --database Ve5tpunFZPuSgjyp4PhWYh --execute ALTER TABLE `messages` ADD `deliveryStatus` enum('pending','sent','delivered','failed') DEFAULT 'sent' NOT NULL;\nALTER TABLE `messages` ADD `deliveryError` text;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 2001
+}
