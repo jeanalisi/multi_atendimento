@@ -417,11 +417,14 @@ export function DocumentSignaturesPanel({
   const [showFinalView, setShowFinalView] = useState(false);
   const [showLegacyChancela, setShowLegacyChancela] = useState(false);
   const [lastAccessCode, setLastAccessCode] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const { data: verDoc, refetch } = trpc.verification.getByEntity.useQuery(
     { entityType, entityId },
     { retry: false }
   );
+
+  const downloadSignedPdf = trpc.verification.downloadSignedPdf.useMutation();
 
   const signatures = verDoc?.signatures ?? [];
   const hasSigned = signatures.length > 0;
@@ -527,17 +530,70 @@ export function DocumentSignaturesPanel({
 
       {/* DOCUMENTO FINAL CONSOLIDADO (após assinatura) */}
       {verDoc && hasSigned && showFinalView && (
-        <DocumentFinalView
-          verDoc={{
-            ...verDoc,
-            signatures: signatures as any,
-          }}
-          content={content}
-          nup={nup ?? verDoc.nup ?? undefined}
-          title={title ?? verDoc.title}
-          issuingUnit={issuingUnit ?? verDoc.issuingUnit ?? undefined}
-          versionLabel="Versão Assinada"
-        />
+        <div className="space-y-3">
+          <DocumentFinalView
+            verDoc={{
+              ...verDoc,
+              signatures: signatures as any,
+            }}
+            content={content}
+            nup={nup ?? verDoc.nup ?? undefined}
+            title={title ?? verDoc.title}
+            issuingUnit={issuingUnit ?? verDoc.issuingUnit ?? undefined}
+            versionLabel="Versão Assinada"
+          />
+          {/* Botão de download do PDF consolidado real */}
+          <div className="flex gap-2 flex-wrap">
+            <Button
+              size="sm"
+              variant="default"
+              disabled={isDownloading}
+              onClick={async () => {
+                setIsDownloading(true);
+                try {
+                  const result = await downloadSignedPdf.mutateAsync({
+                    verifiableDocumentId: verDoc.id,
+                    documentContent: content,
+                    origin: window.location.origin,
+                  });
+                  const byteChars = atob(result.base64Pdf);
+                  const byteArr = new Uint8Array(byteChars.length);
+                  for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
+                  const blob = new Blob([byteArr], { type: "application/pdf" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = result.fileName;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
+                  toast.success("PDF consolidado baixado com sucesso!");
+                } catch (err: any) {
+                  toast.error(err?.message ?? "Erro ao gerar PDF consolidado");
+                } finally {
+                  setIsDownloading(false);
+                }
+              }}
+              className="gap-1.5"
+            >
+              {isDownloading ? (
+                <><span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />Gerando PDF...</>
+              ) : (
+                <><Download className="w-3.5 h-3.5" />Baixar PDF Assinado</>
+              )}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => window.open(`${window.location.origin}/verificar/${verDoc.verificationKey}`, "_blank")}
+              className="gap-1.5"
+            >
+              <Search className="w-3.5 h-3.5" />
+              Verificar Autenticidade
+            </Button>
+          </div>
+        </div>
       )}
 
       {/* Lista resumida de assinaturas (quando documento final não está expandido) */}

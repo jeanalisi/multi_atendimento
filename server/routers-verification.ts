@@ -3,11 +3,14 @@ import { router, publicProcedure, protectedProcedure } from "./_core/trpc";
 import { getDb } from "./db";
 import {
   verifiableDocuments, documentSignatures, documentVerificationLogs,
+  attachments,
   VerifiableDocument, DocumentSignature,
 } from "../drizzle/schema";
 import { eq, and, or, desc } from "drizzle-orm";
 import crypto from "crypto";
 import QRCode from "qrcode";
+import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
+import { storageGet } from "./storage";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -356,7 +359,7 @@ export const verificationRouter = router({
         .orderBy(documentSignatures.signatureOrder);
     }),
 
-  // ── Listar documentos verificáveis do usuário/admin ───────────────────────
+  // ── Listar documentos verificáveis do usuário/admin ────────────────────────────────────────────
   list: protectedProcedure
     .input(z.object({
       entityType: z.string().optional(),
@@ -370,5 +373,241 @@ export const verificationRouter = router({
         .limit(input.limit);
 
       return query;
+    }),
+
+  // ── Download PDF consolidado (documento original + página de assinatura) ─────
+  downloadSignedPdf: protectedProcedure
+    .input(z.object({
+      verifiableDocumentId: z.number(),
+      // Para PDF externo: s3Key ou s3Url do arquivo original
+      originalPdfS3Key: z.string().optional(),
+      originalPdfUrl: z.string().optional(),
+      // Para documento interno: conteúdo HTML/texto a ser incluído
+      documentContent: z.string().optional(),
+      origin: z.string().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database unavailable");
+
+      // Buscar documento verificável
+      const docs = await db.select().from(verifiableDocuments)
+        .where(eq(verifiableDocuments.id, input.verifiableDocumentId))
+        .limit(1);
+      if (!docs.length) throw new Error("Documento não encontrado");
+      const doc = docs[0];
+
+      // Buscar assinaturas
+      const sigs = await db.select().from(documentSignatures)
+        .where(eq(documentSignatures.verifiableDocumentId, doc.id))
+        .orderBy(documentSignatures.signatureOrder);
+
+      // Tentar buscar o PDF original do S3
+      let originalPdfBytes: Uint8Array | null = null;
+      try {
+        let pdfUrl = input.originalPdfUrl;
+        if (!pdfUrl && input.originalPdfS3Key) {
+          const { url } = await storageGet(input.originalPdfS3Key);
+          pdfUrl = url;
+        }
+        if (!pdfUrl && doc.entityType === "custom") {
+          // Buscar attachment pelo entityId
+          const att = await db.select().from(attachments)
+            .where(and(
+              eq(attachments.entityId, doc.entityId),
+              eq(attachments.entityType, "external_pdf"),
+            ))
+            .orderBy(desc(attachments.createdAt))
+            .limit(1);
+          if (att.length > 0) {
+            const { url } = await storageGet(att[0].s3Key);
+            pdfUrl = url;
+          }
+        }
+        if (pdfUrl) {
+          const res = await fetch(pdfUrl);
+          if (res.ok) {
+            originalPdfBytes = new Uint8Array(await res.arrayBuffer());
+          }
+        }
+      } catch {
+        // Se não conseguir o PDF original, gera apenas a página de assinatura
+      }
+
+      // Criar o PDF da página de assinatura
+      const signaturePdf = await PDFDocument.create();
+      const page = signaturePdf.addPage([595.28, 841.89]); // A4
+      const { width, height } = page.getSize();
+      const fontBold = await signaturePdf.embedFont(StandardFonts.HelveticaBold);
+      const fontRegular = await signaturePdf.embedFont(StandardFonts.Helvetica);
+      const fontMono = await signaturePdf.embedFont(StandardFonts.Courier);
+
+      const margin = 50;
+      const blue = rgb(0.1, 0.22, 0.42);
+      const lightBlue = rgb(0.93, 0.96, 1.0);
+      const gray = rgb(0.45, 0.45, 0.45);
+      const darkGray = rgb(0.2, 0.2, 0.2);
+      const green = rgb(0.13, 0.55, 0.13);
+
+      let y = height - margin;
+
+      // ── Cabeçalho ──
+      // Fundo azul no topo
+      page.drawRectangle({ x: 0, y: height - 80, width, height: 80, color: blue });
+      page.drawText("CHANCELA DE AUTENTICIDADE", {
+        x: margin, y: height - 35,
+        size: 14, font: fontBold, color: rgb(1, 1, 1),
+      });
+      page.drawText("Documento Assinado Eletronicamente", {
+        x: margin, y: height - 55,
+        size: 9, font: fontRegular, color: rgb(0.8, 0.88, 1.0),
+      });
+      // Logo/órgão à direita
+      const orgText = doc.issuingUnit ?? "CAIUS — Plataforma Institucional";
+      const orgTextWidth = fontRegular.widthOfTextAtSize(orgText, 8);
+      page.drawText(orgText, {
+        x: width - margin - orgTextWidth, y: height - 45,
+        size: 8, font: fontRegular, color: rgb(0.8, 0.88, 1.0),
+      });
+
+      y = height - 100;
+
+      // ── Título do documento ──
+      page.drawText("DOCUMENTO", { x: margin, y, size: 7, font: fontBold, color: gray });
+      y -= 14;
+      page.drawText(doc.title, { x: margin, y, size: 12, font: fontBold, color: darkGray, maxWidth: width - 2 * margin });
+      y -= 20;
+
+      // Linha separadora
+      page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 0.5, color: rgb(0.8, 0.8, 0.8) });
+      y -= 16;
+
+      // ── Dados do documento ──
+      const drawField = (label: string, value: string, x: number, yPos: number, colWidth = 240) => {
+        page.drawText(label.toUpperCase(), { x, y: yPos, size: 6.5, font: fontBold, color: gray });
+        page.drawText(value || "—", { x, y: yPos - 11, size: 9, font: fontRegular, color: darkGray, maxWidth: colWidth });
+        return yPos - 26;
+      };
+
+      const col1 = margin;
+      const col2 = margin + 260;
+
+      // Linha 1
+      drawField("Tipo de Documento", doc.documentType, col1, y);
+      drawField("Unidade Emissora", doc.issuingUnit ?? "—", col2, y);
+      y -= 30;
+
+      // Linha 2
+      drawField("NUP", doc.nup ?? "—", col1, y);
+      drawField("Número do Documento", doc.documentNumber ?? "—", col2, y);
+      y -= 30;
+
+      // Linha 3
+      const issuedAtStr = doc.issuedAt
+        ? new Date(doc.issuedAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })
+        : "—";
+      drawField("Data de Emissão", issuedAtStr, col1, y);
+      drawField("Status", doc.status === "authentic" ? "Autêntico" : doc.status, col2, y);
+      y -= 30;
+
+      // ── Chave de verificação ──
+      page.drawRectangle({ x: margin, y: y - 4, width: width - 2 * margin, height: 28, color: lightBlue });
+      page.drawText("CHAVE DE VERIFICAÇÃO", { x: margin + 8, y: y + 14, size: 6.5, font: fontBold, color: blue });
+      page.drawText(doc.verificationKey, { x: margin + 8, y: y + 2, size: 10, font: fontMono, color: blue });
+      y -= 38;
+
+      // Link de verificação
+      const verifyUrl = doc.verificationUrl ?? `${input.origin ?? "https://multichat-ve5tpunf.manus.space"}/verificar/${doc.verificationKey}`;
+      page.drawText("LINK DE VERIFICAÇÃO", { x: margin, y, size: 6.5, font: fontBold, color: gray });
+      y -= 11;
+      page.drawText(verifyUrl, { x: margin, y, size: 8, font: fontMono, color: blue, maxWidth: width - 2 * margin - 100 });
+      y -= 24;
+
+      // Linha separadora
+      page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 0.5, color: rgb(0.8, 0.8, 0.8) });
+      y -= 16;
+
+      // ── Assinaturas ──
+      if (sigs.length > 0) {
+        page.drawText("ASSINATURAS ELETRÔNICAS", { x: margin, y, size: 8, font: fontBold, color: blue });
+        y -= 16;
+
+        for (const sig of sigs) {
+          // Fundo cinza claro para cada assinatura
+          const sigBlockHeight = 58;
+          page.drawRectangle({ x: margin, y: y - sigBlockHeight + 12, width: width - 2 * margin, height: sigBlockHeight, color: rgb(0.97, 0.97, 0.97) });
+          page.drawRectangle({ x: margin, y: y - sigBlockHeight + 12, width: 3, height: sigBlockHeight, color: green });
+
+          const sigX = margin + 10;
+          page.drawText(`${sig.signatureOrder}. ${sig.signerName}`, { x: sigX, y: y, size: 10, font: fontBold, color: darkGray });
+          y -= 13;
+          const roleUnit = [sig.signerRole, sig.signerUnit].filter(Boolean).join(" — ");
+          if (roleUnit) {
+            page.drawText(roleUnit, { x: sigX, y, size: 8, font: fontRegular, color: gray });
+            y -= 12;
+          }
+          const sigDate = sig.signedAt ? new Date(sig.signedAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "—";
+          page.drawText(`Assinado em: ${sigDate}`, { x: sigX, y, size: 7.5, font: fontRegular, color: gray });
+          y -= 11;
+          const typeLabel = sig.signatureType === "institutional" ? "Assinatura Institucional"
+            : sig.signatureType === "advanced" ? "Assinatura Avançada"
+            : "Assinatura Qualificada ICP-Brasil";
+          page.drawText(`Tipo: ${typeLabel}`, { x: sigX, y, size: 7.5, font: fontRegular, color: gray });
+          if (sig.signerCpfMasked) {
+            page.drawText(`  |  CPF: ${sig.signerCpfMasked}`, { x: sigX + 120, y, size: 7.5, font: fontRegular, color: gray });
+          }
+          y -= 11;
+          if (sig.accessCode) {
+            page.drawText(`Código: ${sig.accessCode}`, { x: sigX, y, size: 7, font: fontMono, color: blue });
+          }
+          y -= 18;
+        }
+      }
+
+      // ── Rodapé institucional ──
+      const footerY = 40;
+      page.drawLine({ start: { x: margin, y: footerY + 20 }, end: { x: width - margin, y: footerY + 20 }, thickness: 0.5, color: rgb(0.8, 0.8, 0.8) });
+      page.drawText("Este documento foi assinado eletronicamente conforme a Lei nº 14.063/2020 e tem validade jurídica.", {
+        x: margin, y: footerY + 8, size: 7, font: fontRegular, color: gray, maxWidth: width - 2 * margin,
+      });
+      page.drawText("Autenticidade verificável em: " + verifyUrl, {
+        x: margin, y: footerY - 4, size: 6.5, font: fontMono, color: blue, maxWidth: width - 2 * margin,
+      });
+
+      // ── Merge com o PDF original ──
+      const signatureBytes = await signaturePdf.save();
+
+      let finalPdfBytes: Uint8Array;
+
+      if (originalPdfBytes) {
+        try {
+          // Merge: original + página de assinatura
+          const originalDoc = await PDFDocument.load(originalPdfBytes);
+          const mergedDoc = await PDFDocument.create();
+          // Copiar todas as páginas do original
+          const originalPages = await mergedDoc.copyPages(originalDoc, originalDoc.getPageIndices());
+          for (const p of originalPages) mergedDoc.addPage(p);
+          // Copiar a página de assinatura
+          const signatureDoc = await PDFDocument.load(signatureBytes);
+          const [sigPage] = await mergedDoc.copyPages(signatureDoc, [0]);
+          mergedDoc.addPage(sigPage);
+          finalPdfBytes = await mergedDoc.save();
+        } catch {
+          // Se o merge falhar, retornar apenas a página de assinatura
+          finalPdfBytes = signatureBytes;
+        }
+      } else {
+        // Sem PDF original: retornar apenas a página de assinatura
+        finalPdfBytes = signatureBytes;
+      }
+
+      // Retornar como base64
+      const base64 = Buffer.from(finalPdfBytes).toString("base64");
+      return {
+        success: true,
+        base64Pdf: base64,
+        fileName: `${doc.title.replace(/[^a-zA-Z0-9\u00C0-\u017E\s]/g, "").trim().replace(/\s+/g, "_")}_assinado.pdf`,
+        pageCount: originalPdfBytes ? undefined : 1,
+      };
     }),
 });

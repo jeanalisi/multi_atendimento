@@ -61,10 +61,14 @@ export default function SignExternalPDF() {
   const [signedDoc, setSignedDoc] = useState<SignedDoc | null>(null);
   const [showPreview, setShowPreview] = useState(false);
 
+  // Estado de download
+  const [isDownloading, setIsDownloading] = useState(false);
+
   // Mutations
   const uploadFile = trpc.attachments.upload.useMutation();
   const issueChancela = trpc.verification.issue.useMutation();
   const signDoc = trpc.verification.sign.useMutation();
+  const downloadSignedPdf = trpc.verification.downloadSignedPdf.useMutation();
 
   // Buscar documento verificável completo (com assinaturas) após assinatura
   const { data: finalVerDoc, refetch: refetchVerDoc } = trpc.verification.getByEntity.useQuery(
@@ -188,45 +192,37 @@ export default function SignExternalPDF() {
     }
   };
 
-  const handleDownloadConsolidated = () => {
+  const handleDownloadConsolidated = async () => {
     if (!signedDoc || !finalVerDoc) {
       toast.error("Aguarde o carregamento do documento final.");
       return;
     }
-    const appTitle = (import.meta.env.VITE_APP_TITLE as string) ?? "CAIUS";
-    const html = buildDocumentFinalHtml(
-      {
-        ...finalVerDoc,
-        signatures: (finalVerDoc.signatures ?? []) as any,
-      },
-      form.notes || undefined,
-      appTitle,
-    );
-    const win = window.open("", "_blank", "width=960,height=750");
-    if (!win) { toast.error("Permita pop-ups para exportar o PDF."); return; }
-    win.document.write(html);
-    win.document.close();
-    const verifyUrl = finalVerDoc.verificationUrl
-      ?? `${window.location.origin}/verificar/${finalVerDoc.verificationKey}`;
-    win.onload = () => {
-      const script = win.document.createElement("script");
-      script.src = "https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js";
-      script.onload = () => {
-        const container = win.document.getElementById("qr-placeholder");
-        if (container && (win as any).QRCode) {
-          container.innerHTML = "";
-          new (win as any).QRCode(container, {
-            text: verifyUrl,
-            width: 90,
-            height: 90,
-            colorDark: "#1a3a6b",
-            colorLight: "#ffffff",
-          });
-        }
-        setTimeout(() => win.print(), 400);
-      };
-      win.document.head.appendChild(script);
-    };
+    setIsDownloading(true);
+    try {
+      const result = await downloadSignedPdf.mutateAsync({
+        verifiableDocumentId: signedDoc.verifiableDocId,
+        originalPdfUrl: uploadedS3Url || undefined,
+        origin: window.location.origin,
+      });
+      // Fazer download do PDF binário
+      const byteChars = atob(result.base64Pdf);
+      const byteArr = new Uint8Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
+      const blob = new Blob([byteArr], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = result.fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success("PDF consolidado baixado com sucesso!");
+    } catch (err: any) {
+      toast.error(err?.message ?? "Erro ao gerar PDF consolidado");
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   const handleReset = () => {

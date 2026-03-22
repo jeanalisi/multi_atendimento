@@ -673,3 +673,11 @@
 
 ## Correção: Restaurar opção de Fluxos no menu
 - [x] Adicionar item "Fluxos" (workflows) no grupo Administração do menu lateral
+
+## Especificação 41: Exportação PDF Consolidado com Página de Assinatura
+- [x] Backend: procedure downloadSignedPdf — merge PDF original + página A4 de assinatura/chancela
+- [x] Página de assinatura A4: título, signatários, cargo, unidade, data/hora, CPF mascarado, tipo, código, NUP, link, QR Code, chancela, texto institucional
+- [x] SignExternalPDF: botão "Baixar PDF Assinado" usa o PDF consolidado (original + página adicional)
+- [x] DocumentSignaturesPanel: botão "Baixar PDF Assinado" usa o PDF consolidado (documento interno + página adicional)
+- [x] Preservar conteúdo original sem corromper formatação
+- [x] Testes automatizados: 76 testes passando (6 arquivos)
