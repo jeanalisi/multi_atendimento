@@ -48,6 +48,7 @@ import {
 } from "./whatsapp";
 import { testImapConnection, testSmtpConnection, sendEmail, fetchEmails } from "./email";
 import { getIo } from "./_core/socketio";
+import { caiusRouter } from "./routers-caius";
 
 // ─── Admin guard ──────────────────────────────────────────────────────────────
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -393,6 +394,9 @@ export const appRouter = router({
       .input(z.object({ id: z.number() }))
       .mutation(({ input }) => deleteTag(input.id)),
   }),
+
+  // ── CAIUS Modules ──────────────────────────────────────────────────────────
+  caius: caiusRouter,
 
   // ── Analytics ─────────────────────────────────────────────────────────────
   analytics: router({

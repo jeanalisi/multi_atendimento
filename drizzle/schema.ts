@@ -8,6 +8,8 @@ import {
   text,
   timestamp,
   varchar,
+  index,
+  uniqueIndex,
 } from "drizzle-orm/mysql-core";
 
 // ─── Users ────────────────────────────────────────────────────────────────────
@@ -18,9 +20,12 @@ export const users = mysqlTable("users", {
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
   role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
+  // CAIUS extended roles
+  profile: mysqlEnum("profile", ["citizen", "attendant", "sector_server", "manager", "admin"]).default("attendant").notNull(),
   isAgent: boolean("isAgent").default(false).notNull(),
   isAvailable: boolean("isAvailable").default(true).notNull(),
   avatarUrl: text("avatarUrl"),
+  sectorId: int("sectorId"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
@@ -29,21 +34,34 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
+// ─── Sectors (Setores / Unidades Administrativas) ─────────────────────────────
+export const sectors = mysqlTable("sectors", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  code: varchar("code", { length: 32 }).notNull().unique(),
+  description: text("description"),
+  parentId: int("parentId"),
+  managerId: int("managerId"),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Sector = typeof sectors.$inferSelect;
+export type InsertSector = typeof sectors.$inferInsert;
+
 // ─── Connected Accounts (WhatsApp / Instagram / Email) ───────────────────────
 export const accounts = mysqlTable("accounts", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
   channel: mysqlEnum("channel", ["whatsapp", "instagram", "email"]).notNull(),
   name: varchar("name", { length: 255 }).notNull(),
-  identifier: varchar("identifier", { length: 320 }).notNull(), // phone / @handle / email address
+  identifier: varchar("identifier", { length: 320 }).notNull(),
   status: mysqlEnum("status", ["connecting", "connected", "disconnected", "error"]).default("disconnected").notNull(),
-  // WhatsApp specific
-  waSessionData: text("waSessionData"), // serialized session (JSON string)
-  waQrCode: text("waQrCode"),           // current QR code (base64)
-  // Instagram specific
+  waSessionData: text("waSessionData"),
+  waQrCode: text("waQrCode"),
   igAccessToken: text("igAccessToken"),
   igUserId: varchar("igUserId", { length: 64 }),
-  // Email specific
   imapHost: varchar("imapHost", { length: 255 }),
   imapPort: int("imapPort"),
   imapUser: varchar("imapUser", { length: 320 }),
@@ -66,6 +84,7 @@ export const contacts = mysqlTable("contacts", {
   name: varchar("name", { length: 255 }),
   email: varchar("email", { length: 320 }),
   phone: varchar("phone", { length: 64 }),
+  cpfCnpj: varchar("cpfCnpj", { length: 18 }),
   igHandle: varchar("igHandle", { length: 128 }),
   avatarUrl: text("avatarUrl"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -78,13 +97,15 @@ export type InsertContact = typeof contacts.$inferInsert;
 // ─── Conversations ─────────────────────────────────────────────────────────────
 export const conversations = mysqlTable("conversations", {
   id: int("id").autoincrement().primaryKey(),
+  nup: varchar("nup", { length: 32 }).unique(),
   accountId: int("accountId").notNull(),
   contactId: int("contactId"),
   channel: mysqlEnum("channel", ["whatsapp", "instagram", "email"]).notNull(),
-  externalId: varchar("externalId", { length: 512 }), // chat JID / thread ID / email thread
-  subject: varchar("subject", { length: 512 }),       // email subject
+  externalId: varchar("externalId", { length: 512 }),
+  subject: varchar("subject", { length: 512 }),
   status: mysqlEnum("status", ["open", "pending", "resolved", "snoozed"]).default("open").notNull(),
   assignedAgentId: int("assignedAgentId"),
+  assignedSectorId: int("assignedSectorId"),
   priority: mysqlEnum("priority", ["low", "normal", "high", "urgent"]).default("normal").notNull(),
   unreadCount: int("unreadCount").default(0).notNull(),
   lastMessageAt: timestamp("lastMessageAt"),
@@ -108,6 +129,7 @@ export const messages = mysqlTable("messages", {
   senderName: varchar("senderName", { length: 255 }),
   senderAgentId: int("senderAgentId"),
   isRead: boolean("isRead").default(false).notNull(),
+  aiGenerated: boolean("aiGenerated").default(false).notNull(),
   sentAt: timestamp("sentAt").defaultNow().notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
@@ -115,10 +137,231 @@ export const messages = mysqlTable("messages", {
 export type Message = typeof messages.$inferSelect;
 export type InsertMessage = typeof messages.$inferInsert;
 
+// ─── Protocols (Protocolo Digital com NUP) ────────────────────────────────────
+export const protocols = mysqlTable("protocols", {
+  id: int("id").autoincrement().primaryKey(),
+  nup: varchar("nup", { length: 32 }).notNull().unique(),
+  conversationId: int("conversationId"),
+  contactId: int("contactId"),
+  // Requester info (for citizens without account)
+  requesterName: varchar("requesterName", { length: 255 }),
+  requesterEmail: varchar("requesterEmail", { length: 320 }),
+  requesterPhone: varchar("requesterPhone", { length: 64 }),
+  requesterCpfCnpj: varchar("requesterCpfCnpj", { length: 18 }),
+  // Protocol details
+  subject: varchar("subject", { length: 512 }).notNull(),
+  description: text("description"),
+  type: mysqlEnum("type", ["request", "complaint", "information", "suggestion", "praise", "ombudsman", "esic", "administrative"]).default("request").notNull(),
+  channel: mysqlEnum("channel", ["whatsapp", "instagram", "email", "web", "phone", "in_person"]).default("web").notNull(),
+  status: mysqlEnum("status", ["open", "in_analysis", "pending_docs", "in_progress", "concluded", "archived"]).default("open").notNull(),
+  priority: mysqlEnum("priority", ["low", "normal", "high", "urgent"]).default("normal").notNull(),
+  isConfidential: boolean("isConfidential").default(false).notNull(),
+  responsibleSectorId: int("responsibleSectorId"),
+  responsibleUserId: int("responsibleUserId"),
+  createdById: int("createdById"),
+  // Deadline
+  deadline: timestamp("deadline"),
+  concludedAt: timestamp("concludedAt"),
+  // Parent NUP for linked records
+  parentNup: varchar("parentNup", { length: 32 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Protocol = typeof protocols.$inferSelect;
+export type InsertProtocol = typeof protocols.$inferInsert;
+
+// ─── Tramitations (Tramitação entre Setores) ──────────────────────────────────
+export const tramitations = mysqlTable("tramitations", {
+  id: int("id").autoincrement().primaryKey(),
+  protocolId: int("protocolId").notNull(),
+  nup: varchar("nup", { length: 32 }).notNull(),
+  fromSectorId: int("fromSectorId"),
+  toSectorId: int("toSectorId"),
+  fromUserId: int("fromUserId"),
+  toUserId: int("toUserId"),
+  action: mysqlEnum("action", ["forward", "return", "assign", "conclude", "archive", "reopen", "comment"]).notNull(),
+  dispatch: text("dispatch"),
+  attachments: json("attachments"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type Tramitation = typeof tramitations.$inferSelect;
+export type InsertTramitation = typeof tramitations.$inferInsert;
+
+// ─── Official Documents (Documentos Oficiais) ─────────────────────────────────
+export const officialDocuments = mysqlTable("officialDocuments", {
+  id: int("id").autoincrement().primaryKey(),
+  nup: varchar("nup", { length: 32 }).unique(),
+  protocolId: int("protocolId"),
+  processId: int("processId"),
+  type: mysqlEnum("type", ["memo", "official_letter", "dispatch", "opinion", "notification", "certificate", "report", "other"]).notNull(),
+  number: varchar("number", { length: 64 }).notNull().unique(),
+  title: varchar("title", { length: 512 }).notNull(),
+  content: text("content"),
+  authorId: int("authorId").notNull(),
+  sectorId: int("sectorId"),
+  status: mysqlEnum("status", ["draft", "pending_signature", "signed", "published", "archived"]).default("draft").notNull(),
+  isConfidential: boolean("isConfidential").default(false).notNull(),
+  aiGenerated: boolean("aiGenerated").default(false).notNull(),
+  fileUrl: text("fileUrl"),
+  issuedAt: timestamp("issuedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type OfficialDocument = typeof officialDocuments.$inferSelect;
+export type InsertOfficialDocument = typeof officialDocuments.$inferInsert;
+
+// ─── Administrative Processes (Processos Administrativos) ─────────────────────
+export const adminProcesses = mysqlTable("adminProcesses", {
+  id: int("id").autoincrement().primaryKey(),
+  nup: varchar("nup", { length: 32 }).notNull().unique(),
+  originProtocolNup: varchar("originProtocolNup", { length: 32 }),
+  title: varchar("title", { length: 512 }).notNull(),
+  type: varchar("type", { length: 128 }).notNull(),
+  description: text("description"),
+  legalBasis: text("legalBasis"),
+  observations: text("observations"),
+  decision: text("decision"),
+  status: mysqlEnum("status", ["open", "in_analysis", "pending_docs", "in_progress", "concluded", "archived"]).default("open").notNull(),
+  priority: mysqlEnum("priority", ["low", "normal", "high", "urgent"]).default("normal").notNull(),
+  isConfidential: boolean("isConfidential").default(false).notNull(),
+  responsibleSectorId: int("responsibleSectorId"),
+  responsibleUserId: int("responsibleUserId"),
+  createdById: int("createdById").notNull(),
+  deadline: timestamp("deadline"),
+  concludedAt: timestamp("concludedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type AdminProcess = typeof adminProcesses.$inferSelect;
+export type InsertAdminProcess = typeof adminProcesses.$inferInsert;
+
+// ─── Ombudsman Manifestations (Ouvidoria) ─────────────────────────────────────
+export const ombudsmanManifestations = mysqlTable("ombudsmanManifestations", {
+  id: int("id").autoincrement().primaryKey(),
+  nup: varchar("nup", { length: 32 }).notNull().unique(),
+  type: mysqlEnum("type", ["complaint", "denounce", "praise", "suggestion", "request", "esic"]).notNull(),
+  subject: varchar("subject", { length: 512 }).notNull(),
+  description: text("description").notNull(),
+  // Requester (can be anonymous)
+  isAnonymous: boolean("isAnonymous").default(false).notNull(),
+  requesterName: varchar("requesterName", { length: 255 }),
+  requesterEmail: varchar("requesterEmail", { length: 320 }),
+  requesterPhone: varchar("requesterPhone", { length: 64 }),
+  requesterCpfCnpj: varchar("requesterCpfCnpj", { length: 18 }),
+  isConfidential: boolean("isConfidential").default(false).notNull(),
+  status: mysqlEnum("status", ["received", "in_analysis", "in_progress", "answered", "archived"]).default("received").notNull(),
+  responsibleSectorId: int("responsibleSectorId"),
+  responsibleUserId: int("responsibleUserId"),
+  response: text("response"),
+  respondedAt: timestamp("respondedAt"),
+  deadline: timestamp("deadline"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type OmbudsmanManifestation = typeof ombudsmanManifestations.$inferSelect;
+export type InsertOmbudsmanManifestation = typeof ombudsmanManifestations.$inferInsert;
+
+// ─── Document Templates (Modelos de Documentos) ───────────────────────────────
+export const documentTemplates = mysqlTable("documentTemplates", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  type: mysqlEnum("type", ["memo", "official_letter", "dispatch", "opinion", "notification", "certificate", "report", "response", "other"]).notNull(),
+  content: text("content").notNull(),
+  variables: json("variables"),
+  sectorId: int("sectorId"),
+  createdById: int("createdById").notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type DocumentTemplate = typeof documentTemplates.$inferSelect;
+export type InsertDocumentTemplate = typeof documentTemplates.$inferInsert;
+
+// ─── Electronic Signatures (Assinaturas Eletrônicas) ──────────────────────────
+export const electronicSignatures = mysqlTable("electronicSignatures", {
+  id: int("id").autoincrement().primaryKey(),
+  documentId: int("documentId").notNull(),
+  nup: varchar("nup", { length: 32 }),
+  signerId: int("signerId").notNull(),
+  signerName: varchar("signerName", { length: 255 }).notNull(),
+  signerEmail: varchar("signerEmail", { length: 320 }),
+  signerRole: varchar("signerRole", { length: 128 }),
+  ipAddress: varchar("ipAddress", { length: 64 }),
+  documentHash: varchar("documentHash", { length: 256 }),
+  signedAt: timestamp("signedAt").defaultNow().notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type ElectronicSignature = typeof electronicSignatures.$inferSelect;
+export type InsertElectronicSignature = typeof electronicSignatures.$inferInsert;
+
+// ─── Audit Logs (Trilha de Auditoria) ─────────────────────────────────────────
+export const auditLogs = mysqlTable("auditLogs", {
+  id: int("id").autoincrement().primaryKey(),
+  nup: varchar("nup", { length: 32 }),
+  userId: int("userId"),
+  userName: varchar("userName", { length: 255 }),
+  action: varchar("action", { length: 128 }).notNull(),
+  entity: varchar("entity", { length: 64 }).notNull(),
+  entityId: int("entityId"),
+  details: json("details"),
+  ipAddress: varchar("ipAddress", { length: 64 }),
+  aiAssisted: boolean("aiAssisted").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type InsertAuditLog = typeof auditLogs.$inferInsert;
+
+// ─── AI Providers (Provedores de IA) ──────────────────────────────────────────
+export const aiProviders = mysqlTable("aiProviders", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  provider: mysqlEnum("provider", ["openai", "gemini", "anthropic", "other"]).notNull(),
+  name: varchar("name", { length: 128 }).notNull(),
+  encryptedApiKey: text("encryptedApiKey").notNull(),
+  model: varchar("model", { length: 128 }),
+  isActive: boolean("isActive").default(true).notNull(),
+  allowedProfiles: json("allowedProfiles"),
+  allowedSectors: json("allowedSectors"),
+  allowedDocTypes: json("allowedDocTypes"),
+  retainHistory: boolean("retainHistory").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type AiProvider = typeof aiProviders.$inferSelect;
+export type InsertAiProvider = typeof aiProviders.$inferInsert;
+
+// ─── AI Usage Logs (Logs de Uso de IA) ────────────────────────────────────────
+export const aiUsageLogs = mysqlTable("aiUsageLogs", {
+  id: int("id").autoincrement().primaryKey(),
+  providerId: int("providerId").notNull(),
+  userId: int("userId").notNull(),
+  nup: varchar("nup", { length: 32 }),
+  entityType: varchar("entityType", { length: 64 }),
+  entityId: int("entityId"),
+  prompt: text("prompt"),
+  response: text("response"),
+  action: varchar("action", { length: 128 }),
+  tokensUsed: int("tokensUsed"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type AiUsageLog = typeof aiUsageLogs.$inferSelect;
+export type InsertAiUsageLog = typeof aiUsageLogs.$inferInsert;
+
 // ─── Tickets ──────────────────────────────────────────────────────────────────
 export const tickets = mysqlTable("tickets", {
   id: int("id").autoincrement().primaryKey(),
   conversationId: int("conversationId").notNull(),
+  nup: varchar("nup", { length: 32 }),
   title: varchar("title", { length: 512 }).notNull(),
   description: text("description"),
   status: mysqlEnum("status", ["open", "in_progress", "resolved", "closed"]).default("open").notNull(),
@@ -133,7 +376,7 @@ export const tickets = mysqlTable("tickets", {
 export type Ticket = typeof tickets.$inferSelect;
 export type InsertTicket = typeof tickets.$inferInsert;
 
-// ─── Queue (Fila de Atendimento) ──────────────────────────────────────────────
+// ─── Queue ────────────────────────────────────────────────────────────────────
 export const queue = mysqlTable("queue", {
   id: int("id").autoincrement().primaryKey(),
   conversationId: int("conversationId").notNull(),
@@ -152,12 +395,14 @@ export type InsertQueue = typeof queue.$inferInsert;
 export const notifications = mysqlTable("notifications", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
-  type: mysqlEnum("type", ["new_message", "ticket_assigned", "ticket_resolved", "queue_assigned", "mention"]).notNull(),
+  type: mysqlEnum("type", ["new_message", "ticket_assigned", "ticket_resolved", "queue_assigned", "mention", "protocol_update", "tramitation", "signature_request"]).notNull(),
   title: varchar("title", { length: 255 }).notNull(),
   body: text("body"),
   isRead: boolean("isRead").default(false).notNull(),
   relatedConversationId: int("relatedConversationId"),
   relatedTicketId: int("relatedTicketId"),
+  relatedProtocolId: int("relatedProtocolId"),
+  nup: varchar("nup", { length: 32 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
@@ -176,4 +421,12 @@ export const conversationTags = mysqlTable("conversationTags", {
   id: int("id").autoincrement().primaryKey(),
   conversationId: int("conversationId").notNull(),
   tagId: int("tagId").notNull(),
+});
+
+// ─── NUP Counter (Contador para geração de NUP único) ─────────────────────────
+export const nupCounter = mysqlTable("nupCounter", {
+  id: int("id").autoincrement().primaryKey(),
+  year: int("year").notNull(),
+  sequence: int("sequence").notNull().default(0),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

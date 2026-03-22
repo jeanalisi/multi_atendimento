@@ -1,4 +1,4 @@
-# Plataforma Multi Atendimento - TODO
+# Plataforma CAIUS — Multi Atendimento - TODO
 
 ## Fase 1: Banco de Dados e Dependências
 - [x] Schema do banco de dados (contas, conversas, mensagens, tickets, agentes)
@@ -42,7 +42,42 @@
 - [x] Desempenho por agente
 - [x] Histórico de conversas com busca e filtros avançados
 
-## Fase 7: Finalização
-- [x] Testes vitest para routers principais (16 testes passando)
-- [x] Ajustes visuais e responsividade
+## Fase 7: CAIUS — Gestão Administrativa
+
+### Banco de Dados
+- [x] Tabelas: sectors, protocols, tramitations, officialDocuments, adminProcesses, ombudsmanManifestations, documentTemplates, electronicSignatures, auditLogs, aiProviders, aiUsageLogs
+- [x] Coluna NUP em todas as tabelas relevantes
+- [x] Índices e constraints de unicidade do NUP
+
+### Backend (tRPC)
+- [x] Router: sectors (setores e unidades)
+- [x] Router: protocols (protocolo digital com NUP)
+- [x] Router: tramitations (tramitação entre setores)
+- [x] Router: officialDocuments (documentos oficiais)
+- [x] Router: adminProcesses (processos administrativos)
+- [x] Router: ombudsman (ouvidoria e manifestações)
+- [x] Router: documentTemplates (modelos de documentos)
+- [x] Router: electronicSignatures (assinatura eletrônica)
+- [x] Router: auditLogs (trilha de auditoria)
+- [x] Router: aiProviders (integração ChatGPT/Gemini)
+- [x] API pública de consulta por NUP (sem autenticação)
+
+### Interface
+- [x] Renomear plataforma para CAIUS com novo visual
+- [x] Atualizar sidebar com novos módulos organizados por grupo
+- [x] Página: Protocolo Digital (abertura + NUP)
+- [x] Página: Tramitação Interna (encaminhar entre setores)
+- [x] Página: Consulta Pública por NUP (área externa sem autenticação)
+- [x] Página: Documentos Oficiais (memorandos, ofícios, despachos)
+- [x] Página: Processos Administrativos
+- [x] Página: Ouvidoria e Manifestações
+- [x] Página: Modelos de Documentos com geração por IA
+- [x] Página: Auditoria e Logs
+- [x] Página: Integração com IA (assistente de redação)
+- [x] Página: Configurações de provedores de IA (OpenAI, Gemini, Anthropic)
+- [x] Página: Setores com hierarquia organizacional
+
+## Fase 8: Testes e Entrega
+- [x] 34 testes automatizados passando (3 arquivos de teste)
+- [x] TypeScript sem erros
 - [x] Checkpoint final e entrega
