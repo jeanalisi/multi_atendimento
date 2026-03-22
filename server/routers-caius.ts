@@ -37,6 +37,7 @@ import {
   getSignaturesByDocument,
   getTramitationsByProtocol,
   publicLookupByNup,
+  publicLookupByCpfCnpj,
   updateAdminProcess,
   updateAiProvider,
   updateDocumentTemplate,
@@ -739,7 +740,6 @@ export const caiusRouter = router({
       .query(async ({ input }) => {
         const result = await publicLookupByNup(input.nup);
         if (!result) return null;
-        // Mask confidential records
         if (result.data.isConfidential) {
           return {
             entity: result.entity,
@@ -756,6 +756,18 @@ export const caiusRouter = router({
           };
         }
         return result;
+      }),
+
+    lookupByCpfCnpj: publicProcedure
+      .input(z.object({ cpfCnpj: z.string().min(3) }))
+      .query(async ({ input }) => {
+        const results = await publicLookupByCpfCnpj(input.cpfCnpj);
+        return results.map((r) => ({
+          entity: r.entity,
+          data: r.data.isConfidential
+            ? { ...r.data, subject: "REGISTRO SIGILOSO" }
+            : r.data,
+        }));
       }),
   }),
 });

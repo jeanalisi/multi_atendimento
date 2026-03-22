@@ -4,6 +4,8 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
+import { transcribeAudio } from "./_core/voiceTranscription";
+import { storagePut } from "./storage";
 import {
   addToQueue,
   createMessage,
@@ -435,7 +437,7 @@ export const appRouter = router({
   userAllocations: userAllocationsRouter,
   orgInvites: orgInvitesRouter,
   // ── Analytics ─────────────────────────────────────────────────────────────
-  analytics: router({
+   analytics: router({
     overview: protectedProcedure
       .input(z.object({
         dateFrom: z.date().optional(),
@@ -444,6 +446,42 @@ export const appRouter = router({
       .query(({ input }) => getAnalytics(input?.dateFrom, input?.dateTo)),
     stats: protectedProcedure.query(() => getConversationStats()),
   }),
-});
 
+  voice: router({
+    // Upload audio and transcribe via Whisper API
+    transcribe: protectedProcedure
+      .input(z.object({
+        audioUrl: z.string().url(),
+        language: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const result = await transcribeAudio({
+          audioUrl: input.audioUrl,
+          language: input.language ?? "pt",
+        });
+        if ("error" in result) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: result.error ?? "Falha na transcrição de áudio",
+          });
+        }
+        return { text: result.text, language: result.language ?? "pt" };
+      }),
+
+    // Upload audio file (base64) to S3 and return URL for transcription
+    uploadAudio: protectedProcedure
+      .input(z.object({
+        base64: z.string(),
+        mimeType: z.enum(["audio/webm", "audio/mp3", "audio/wav", "audio/ogg", "audio/m4a"]),
+        filename: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const ext = input.mimeType.split("/")[1] ?? "webm";
+        const key = `voice/${ctx.user.id}/${Date.now()}.${ext}`;
+        const buffer = Buffer.from(input.base64, "base64");
+        const { url } = await storagePut(key, buffer, input.mimeType);
+        return { url, key };
+      }),
+  }),
+});
 export type AppRouter = typeof appRouter;

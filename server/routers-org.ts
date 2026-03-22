@@ -7,6 +7,8 @@ import { TRPCError } from "@trpc/server";
 import { nanoid } from "nanoid";
 import { z } from "zod";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
+import { sendEmail } from "./email";
+import { getAllAccounts } from "./db";
 import {
   getOrgUnits, getOrgUnitById, getOrgUnitTree, getOrgUnitWithBreadcrumb,
   createOrgUnit, updateOrgUnit, deleteOrgUnit, getOrgUnitStats,
@@ -303,9 +305,39 @@ export const orgInvitesRouter = router({
         expiresAt,
       });
 
-      // In a real implementation, send email here via nodemailer
-      // For now, return the invite with the token for display
-      return { ...invite, inviteUrl: `/convite/${token}` };
+      // Send invite email
+      const inviteUrl = `/convite/${token}`;
+      let emailSent = false;
+      let emailError: string | null = null;
+      try {
+        const accounts = await getAllAccounts();
+        const emailAccount = accounts.find((a) => a.channel === "email" && a.smtpHost && a.smtpUser && a.smtpPassword);
+        if (emailAccount) {
+          const orgUnit = await import("./db-org").then((m) => m.getOrgUnitById(input.orgUnitId));
+          const unitName = orgUnit?.name ?? "Unidade Organizacional";
+          await sendEmail(
+            emailAccount,
+            input.email,
+            `Convite para integrar ${unitName} — CAIUS`,
+            `Olá${input.name ? ` ${input.name}` : ""},\n\nVocê foi convidado para integrar ${unitName} no sistema CAIUS.\n\nAcesse o link abaixo para aceitar o convite:\n${window?.location?.origin ?? "https://multichat-ve5tpunf.manus.space"}${inviteUrl}\n\nEste convite expira em ${input.expiresInDays ?? 7} dias.\n\nAtenciosamente,\nEquipe CAIUS`,
+            `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px">
+              <h2 style="color:#1e40af">Convite CAIUS</h2>
+              <p>Olá${input.name ? ` <strong>${input.name}</strong>` : ""},</p>
+              <p>Você foi convidado para integrar <strong>${unitName}</strong> no sistema CAIUS.</p>
+              <p style="margin:24px 0">
+                <a href="${inviteUrl}" style="background:#1e40af;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold">Aceitar Convite</a>
+              </p>
+              <p style="color:#6b7280;font-size:14px">Este convite expira em ${input.expiresInDays ?? 7} dias.</p>
+            </div>`
+          );
+          emailSent = true;
+        } else {
+          emailError = "Nenhuma conta de e-mail SMTP configurada. Configure uma conta de e-mail nas configurações para enviar convites automáticos.";
+        }
+      } catch (err: any) {
+        emailError = err?.message ?? "Falha ao enviar e-mail de convite";
+      }
+      return { ...invite, inviteUrl, emailSent, emailError };
     }),
 
   resend: protectedProcedure

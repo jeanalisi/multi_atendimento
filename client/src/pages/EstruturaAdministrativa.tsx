@@ -349,7 +349,7 @@ export default function EstruturaAdministrativa() {
   const competencias = selected?.acronym ? COMPETENCIAS[selected.acronym] : null;
 
   return (
-    <div className="light min-h-screen bg-slate-50 text-slate-900">
+    <div className="light min-h-screen flex flex-col bg-white text-slate-900">
       {/* Header */}
       <header className="sticky top-0 z-10 bg-white border-b border-slate-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
@@ -379,7 +379,7 @@ export default function EstruturaAdministrativa() {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 py-6 flex gap-6 h-[calc(100vh-64px)]">
+      <div className="max-w-7xl mx-auto px-4 py-6 flex gap-6" style={{height: 'calc(100vh - 80px)', overflow: 'hidden'}}>
         {/* Sidebar — Árvore Hierárquica */}
         <aside className="w-80 shrink-0 flex flex-col gap-3 overflow-hidden">
           <div className="relative">

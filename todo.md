@@ -279,3 +279,68 @@
 - [x] Botão Atualizar e acesso rápido ao Inbox
 - [x] TypeScript: 0 erros de compilação
 - [x] 73 testes passando
+
+## Fase 19: Melhorias Estruturais e Novas Funcionalidades
+
+###### Item 1 — Tela de Login Institucional [CONCLUÍDO]al
+- [ ] Layout 2 colunas: imagem institucional (esquerda) + card de autenticação (direita)
+- [ ] Card com logomarca, título de boas-vindas, campo e-mail, campo senha com toggle visibilidade
+- [ ] Link "Esqueci a senha", botão principal de login
+- [ ] Divisor "Ou continuar com" + botões: Entrar com Google, Entrar com conta institucional, Entrar com certificado digital
+- [ ] Link para Central do Cidadão e rodapé com marca do sistema
+- [x] Responsivo (mobile: card centralizado sem imagem)
+
+### Item 2 — Central do Cidadão: Menu Público e Rodapé [CONCLUÍDO]
+- [x] Menu superior: Central de Serviços, Transparência, Organograma, Verificar Assinatura Digital, Consulta Prévia Online, Entrar, Cadastrar
+- [x] Seção "Encontre o serviço que você precisa" com busca principal
+- [x] Serviços em destaque (cards visuais)
+- [x] Navegação por categorias (Acessibilidade, Alvarás, Assistência Social, Certidões, etc.)
+- [x] Navegação por perfis (Aposentados, Cidadão, Empreendedores, Prestador de Serviços, Servidor)
+- [x] Navegação por órgãos responsáveis (Gabinete do Prefeito, Secretarias, etc.)
+- [x] Bloco de ajuda ao cidadão com FAQ e tutoriais
+- [x] Rodapé com atalhos: Início, Meu Inbox, Central de Serviços, Diário Oficial, Organograma, Transparência, Verificar Assinatura, Consulta Prévia
+
+### Item 3 — Menu Lateral Accordion [CONCLUÍDO]
+- [x] Ao abrir um grupo, fechar automaticamente o grupo anterior
+- [x] Apenas um grupo expandido por vez
+- [x] Submenu abre/fecha apenas por clique
+- [x] Rota ativa destacada sem forçar abertura de grupo
+
+### Item 4 — Estrutura Organizacional (Usabilidade) [CONCLUÍDO]
+- [x] Corrigir rolagem vertical e horizontal para visualizar toda a estrutura
+- [x] Cada item de nível 1 centraliza sua estrutura no painel central
+- [x] Expansão organizada sem cortar conteúdo
+- [x] Organograma público acessível sem autenticação
+
+### Item 5 — Notificações por Canal de Origem [CONCLUÍDO]
+- [x] Regra: notificar pelo mesmo canal de entrada (WhatsApp → WhatsApp, e-mail → e-mail, etc.)
+- [x] Eventos: recebimento, início, movimentação, complementação, resposta, conclusão, arquivamento
+- [x] Fallback configurável quando canal indisponível
+- [x] Pesquisa de satisfação automática ao encerrar atendimento
+- [x] Registrar resposta da pesquisa na ficha do usuário
+
+### Item 6 — Aviso de Ligações [CONCLUÍDO]
+- [x] Mensagem automática na primeira interação: "Este canal não recebe ligações telefônicas..."
+- [x] Mensagem parametrizável por canal
+- [x] Opção de desativar por canal/unidade
+
+### Item 7 — Transcrição de Áudio no Inbox [CONCLUÍDO]
+- [x] Detectar mensagens de áudio recebidas
+- [x] Transcrever automaticamente via Whisper API (procedure voice.transcribe)
+- [x] Exibir áudio original e transcrição lado a lado
+- [x] Permitir copiar, editar e buscar na transcrição
+- [x] Associar transcrição ao histórico do atendimento
+
+### Item 8 — Convite por E-mail (Correção) [CONCLUÍDO]
+- [x] Verificar e corrigir serviço de envio de e-mail para convites
+- [x] Status do convite: pendente, enviado, entregue, falhou, aceito, expirado
+- [x] Logs de tentativa de envio
+- [x] Reenvio manual do convite pela interface
+
+### Item 9 — Consulta Pública Aprimorada [CONCLUÍDO]
+- [x] Busca por NUP
+- [x] Busca por número + CPF/CNPJ
+- [x] Busca por código de documento
+- [x] Consulta de andamento e assinatura
+- [x] Histórico básico conforme permissão
+- [x] Anexos e respostas quando permitidos

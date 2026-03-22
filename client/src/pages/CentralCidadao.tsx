@@ -1,28 +1,56 @@
+/**
+ * Central de Serviços ao Cidadão — CAIUS
+ * Página pública com tema sempre claro, menu de navegação completo,
+ * catálogo de serviços, perfis do cidadão, órgãos e rodapé institucional.
+ */
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import {
   Search, Clock, Shield, Camera, MapPin, CheckCircle2, FileText,
   FormInput, ChevronRight, Building2, Phone, Mail, Globe, ArrowLeft,
-  FileCheck, CircleDot, Circle, Info, ExternalLink, Scale,
+  FileCheck, CircleDot, Circle, Info, ExternalLink, Scale, Menu, X,
+  Baby, GraduationCap, Briefcase, Heart, Home, Car, Leaf, HelpCircle,
+  ChevronDown, MessageSquare, ClipboardList, GitBranch, Star, Users,
 } from "lucide-react";
 
+// ─── Config ──────────────────────────────────────────────────────────────────
 const secrecyLabels: Record<string, { label: string; color: string }> = {
-  public: { label: "Público", color: "bg-green-500/15 text-green-600 border-green-500/30" },
-  restricted: { label: "Restrito", color: "bg-yellow-500/15 text-yellow-600 border-yellow-500/30" },
-  confidential: { label: "Confidencial", color: "bg-orange-500/15 text-orange-600 border-orange-500/30" },
-  secret: { label: "Sigiloso", color: "bg-red-500/15 text-red-600 border-red-500/30" },
+  public: { label: "Público", color: "bg-green-100 text-green-700 border-green-200" },
+  restricted: { label: "Restrito", color: "bg-yellow-100 text-yellow-700 border-yellow-200" },
+  confidential: { label: "Confidencial", color: "bg-orange-100 text-orange-700 border-orange-200" },
+  secret: { label: "Sigiloso", color: "bg-red-100 text-red-700 border-red-200" },
 };
 
 const REQUIREMENT_CONFIG = {
-  required: { label: "Obrigatório", color: "text-red-600 bg-red-500/10 border-red-500/30", Icon: CheckCircle2 },
-  complementary: { label: "Complementar", color: "text-amber-600 bg-amber-500/10 border-amber-500/30", Icon: CircleDot },
-  optional: { label: "Opcional", color: "text-muted-foreground bg-muted border-border", Icon: Circle },
+  required: { label: "Obrigatório", color: "text-red-600 bg-red-50 border-red-200", Icon: CheckCircle2 },
+  complementary: { label: "Complementar", color: "text-amber-600 bg-amber-50 border-amber-200", Icon: CircleDot },
+  optional: { label: "Opcional", color: "text-gray-500 bg-gray-50 border-gray-200", Icon: Circle },
 };
 
+const CITIZEN_PROFILES = [
+  { icon: Baby, label: "Criança e Adolescente", desc: "Serviços para menores de 18 anos", color: "bg-pink-50 text-pink-600 border-pink-200" },
+  { icon: GraduationCap, label: "Estudante", desc: "Bolsas, matrículas e educação", color: "bg-blue-50 text-blue-600 border-blue-200" },
+  { icon: Briefcase, label: "Trabalhador", desc: "Emprego, renda e previdência", color: "bg-indigo-50 text-indigo-600 border-indigo-200" },
+  { icon: Heart, label: "Idoso", desc: "Saúde, benefícios e assistência", color: "bg-rose-50 text-rose-600 border-rose-200" },
+  { icon: Home, label: "Morador", desc: "Habitação, IPTU e urbanismo", color: "bg-amber-50 text-amber-600 border-amber-200" },
+  { icon: Car, label: "Motorista", desc: "Trânsito, licenças e multas", color: "bg-orange-50 text-orange-600 border-orange-200" },
+  { icon: Leaf, label: "Empreendedor", desc: "Alvarás, licenças e CNPJ", color: "bg-green-50 text-green-600 border-green-200" },
+  { icon: Users, label: "Servidor Público", desc: "RH, contracheque e férias", color: "bg-violet-50 text-violet-600 border-violet-200" },
+];
+
+const QUICK_LINKS = [
+  { icon: ClipboardList, label: "Consultar Protocolo", href: "/consulta", desc: "Acompanhe sua solicitação pelo NUP" },
+  { icon: GitBranch, label: "Estrutura Administrativa", href: "/estrutura-administrativa", desc: "Conheça os órgãos e secretarias" },
+  { icon: MessageSquare, label: "Ouvidoria", href: "/", desc: "Reclamações, sugestões e elogios" },
+  { icon: HelpCircle, label: "Ajuda ao Cidadão", href: "/", desc: "Dúvidas frequentes e tutoriais" },
+];
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
 function ReqBadge({ r }: { r: string }) {
   const cfg = REQUIREMENT_CONFIG[r as keyof typeof REQUIREMENT_CONFIG] ?? REQUIREMENT_CONFIG.optional;
   const { Icon } = cfg;
@@ -33,10 +61,13 @@ function ReqBadge({ r }: { r: string }) {
   );
 }
 
+// ─── Main Component ───────────────────────────────────────────────────────────
 export default function CentralCidadao() {
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedService, setSelectedService] = useState<any>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"services" | "profiles" | "organs" | "help">("services");
 
   const { data: services = [], isLoading } = trpc.cidadao.listServices.useQuery({
     search: search || undefined,
@@ -46,222 +77,519 @@ export default function CentralCidadao() {
     { id: selectedService?.id ?? 0 },
     { enabled: !!selectedService?.id }
   );
+  const { data: orgTree } = trpc.orgUnits.treePublic.useQuery();
 
   const categories = Array.from(
     new Set((services as any[]).filter((s) => s.category).map((s: any) => s.category))
   );
 
+  const topOrgs = ((orgTree as any[]) ?? []).filter((n) => !n.parentId).slice(0, 6);
+
   return (
-    <div className="light min-h-screen bg-background text-foreground">
-      {/* ── Header ── */}
-      <header className="sticky top-0 z-10 bg-card border-b border-border shadow-sm">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-md shadow-primary/30">
-              <Scale className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold text-foreground">Central de Serviços ao Cidadão</h1>
-              <p className="text-xs text-muted-foreground">Município de Itabaiana — Encontre e solicite serviços públicos</p>
-            </div>
+    // ── Forçar sempre tema claro ──
+    <div className="light min-h-screen flex flex-col" style={{
+      background: "#f8fafc",
+      color: "#0f172a",
+      fontFamily: "system-ui, -apple-system, sans-serif",
+    }}>
+
+      {/* ═══════════════════════════════════════════════════════════════════════
+          BARRA SUPERIOR INSTITUCIONAL
+      ═══════════════════════════════════════════════════════════════════════ */}
+      <div className="bg-blue-800 text-white text-xs py-1.5 px-4">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+          <span className="hidden sm:block opacity-80">Prefeitura Municipal de Itabaiana — Serviços Públicos Digitais</span>
+          <div className="flex items-center gap-4 ml-auto">
+            <a href="tel:" className="flex items-center gap-1 opacity-70 hover:opacity-100 transition-opacity">
+              <Phone className="w-3 h-3" />0800-000-0000
+            </a>
+            <a href="mailto:atendimento@itabaiana.se.gov.br" className="flex items-center gap-1 opacity-70 hover:opacity-100 transition-opacity">
+              <Mail className="w-3 h-3" />atendimento@municipio.gov.br
+            </a>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button variant="outline" size="sm" className="gap-1.5" asChild>
-              <a href="/estrutura-administrativa">
-                <Building2 className="w-3.5 h-3.5" />Estrutura Administrativa
-              </a>
-            </Button>
-            <Button variant="outline" size="sm" className="gap-1.5" asChild>
+        </div>
+      </div>
+
+      {/* ═══════════════════════════════════════════════════════════════════════
+          HEADER PRINCIPAL
+      ═══════════════════════════════════════════════════════════════════════ */}
+      <header className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4">
+          {/* Logo + ações */}
+          <div className="flex items-center justify-between h-16 gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-700 flex items-center justify-center shadow-md shadow-blue-700/30">
+                <Scale className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-base font-bold text-gray-900 leading-tight">Central de Serviços ao Cidadão</h1>
+                <p className="text-[11px] text-gray-500 leading-tight">Município de Itabaiana</p>
+              </div>
+            </div>
+
+            {/* Desktop nav */}
+            <nav className="hidden md:flex items-center gap-1">
+              {[
+                { key: "services", label: "Serviços" },
+                { key: "profiles", label: "Perfis" },
+                { key: "organs", label: "Órgãos" },
+                { key: "help", label: "Ajuda" },
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key as any)}
+                  className={cn(
+                    "px-4 py-2 text-sm font-medium rounded-lg transition-colors",
+                    activeTab === tab.key
+                      ? "bg-blue-50 text-blue-700"
+                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                  )}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </nav>
+
+            {/* Desktop actions */}
+            <div className="hidden md:flex items-center gap-2">
               <a href="/consulta">
-                <Search className="w-3.5 h-3.5" />Consultar Protocolo
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs border-gray-200 text-gray-700 hover:bg-gray-50">
+                  <ClipboardList className="w-3.5 h-3.5" />Consultar Protocolo
+                </Button>
               </a>
-            </Button>
-            <Button size="sm" className="gap-1.5" asChild>
               <a href="/">
-                <ExternalLink className="w-3.5 h-3.5" />Área Restrita
+                <Button size="sm" className="gap-1.5 text-xs bg-blue-700 hover:bg-blue-800 text-white">
+                  <ExternalLink className="w-3.5 h-3.5" />Área Restrita
+                </Button>
               </a>
-            </Button>
+            </div>
+
+            {/* Mobile menu toggle */}
+            <button
+              className="md:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
           </div>
+
+          {/* Mobile menu */}
+          {mobileMenuOpen && (
+            <div className="md:hidden border-t border-gray-100 py-3 space-y-1">
+              {[
+                { key: "services", label: "Serviços" },
+                { key: "profiles", label: "Perfis" },
+                { key: "organs", label: "Órgãos" },
+                { key: "help", label: "Ajuda" },
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => { setActiveTab(tab.key as any); setMobileMenuOpen(false); }}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"
+                >
+                  {tab.label}
+                </button>
+              ))}
+              <div className="pt-2 flex gap-2">
+                <a href="/consulta" className="flex-1">
+                  <Button variant="outline" size="sm" className="w-full text-xs">Consultar Protocolo</Button>
+                </a>
+                <a href="/" className="flex-1">
+                  <Button size="sm" className="w-full text-xs bg-blue-700 text-white">Área Restrita</Button>
+                </a>
+              </div>
+            </div>
+          )}
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-8">
-        {/* ── Hero search ── */}
-        <div className="text-center mb-10">
-          <h2 className="text-3xl font-bold text-foreground mb-2">Como podemos te ajudar?</h2>
-          <p className="text-muted-foreground mb-6">
-            Encontre o serviço que você precisa e veja os documentos e informações necessários
-          </p>
-          <div className="relative max-w-xl mx-auto">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-            <Input
-              className="pl-12 h-12 text-base rounded-xl bg-card border-border focus-visible:ring-primary"
-              placeholder="Buscar serviço... (ex: certidão, alvará, licença)"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-        </div>
+      {/* ═══════════════════════════════════════════════════════════════════════
+          CONTEÚDO PRINCIPAL
+      ═══════════════════════════════════════════════════════════════════════ */}
+      <main className="flex-1">
 
-        {/* ── Category filters ── */}
-        {categories.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-6">
-            <button
-              onClick={() => setSelectedCategory(null)}
-              className={cn(
-                "px-4 py-1.5 rounded-full text-sm font-medium transition-colors border",
-                !selectedCategory
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-card text-foreground border-border hover:border-primary/50 hover:text-primary"
-              )}
-            >
-              Todos os serviços
-            </button>
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(selectedCategory === cat ? null : cat)}
-                className={cn(
-                  "px-4 py-1.5 rounded-full text-sm font-medium transition-colors border",
-                  selectedCategory === cat
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-card text-foreground border-border hover:border-primary/50 hover:text-primary"
-                )}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* ── Services grid ── */}
-        {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="h-40 rounded-xl bg-muted animate-pulse" />
-            ))}
-          </div>
-        ) : (services as any[]).length === 0 ? (
-          <div className="text-center py-16 text-muted-foreground">
-            <Search className="w-12 h-12 mx-auto mb-3 opacity-30" />
-            <p className="font-medium text-foreground">Nenhum serviço encontrado</p>
-            <p className="text-sm mt-1">Tente buscar com outros termos ou remova os filtros</p>
-          </div>
-        ) : (
+        {/* ── ABA: SERVIÇOS ── */}
+        {activeTab === "services" && (
           <>
-            <p className="text-sm text-muted-foreground mb-4">
-              {(services as any[]).length} serviço{(services as any[]).length !== 1 ? "s" : ""} disponível{(services as any[]).length !== 1 ? "is" : ""}
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {(services as any[]).map((svc) => {
-                const secrecy = secrecyLabels[svc.secrecyLevel] ?? secrecyLabels.public;
-                return (
+            {/* Hero */}
+            <section className="bg-gradient-to-br from-blue-800 via-blue-700 to-indigo-700 text-white py-14 px-4">
+              <div className="max-w-3xl mx-auto text-center">
+                <div className="inline-flex items-center gap-2 rounded-full bg-white/15 border border-white/20 px-4 py-1.5 text-xs text-blue-100 mb-5">
+                  <Star className="w-3.5 h-3.5" />
+                  Plataforma Oficial de Serviços Públicos
+                </div>
+                <h2 className="text-4xl font-bold mb-3 leading-tight">Como podemos te ajudar?</h2>
+                <p className="text-blue-100 mb-8 text-lg">
+                  Encontre o serviço que você precisa e veja os documentos e informações necessários
+                </p>
+                <div className="relative max-w-xl mx-auto">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    className="w-full pl-12 pr-4 h-13 py-3.5 text-base rounded-xl bg-white border border-transparent text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 shadow-lg"
+                    placeholder="Buscar serviço... (ex: certidão, alvará, licença)"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                </div>
+              </div>
+            </section>
+
+            {/* Quick links */}
+            <section className="bg-white border-b border-gray-100 py-4 px-4">
+              <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-3">
+                {QUICK_LINKS.map(({ icon: Icon, label, href, desc }) => (
+                  <a key={label} href={href} className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-blue-200 hover:bg-blue-50/50 transition-all group">
+                    <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center shrink-0 group-hover:bg-blue-100 transition-colors">
+                      <Icon className="w-4.5 h-4.5 text-blue-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-800 leading-tight">{label}</p>
+                      <p className="text-xs text-gray-500 leading-tight truncate">{desc}</p>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </section>
+
+            {/* Services catalog */}
+            <section className="max-w-7xl mx-auto px-4 py-8">
+              {/* Category filters */}
+              {categories.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-6">
                   <button
-                    key={svc.id}
-                    onClick={() => setSelectedService(svc)}
-                    className="text-left bg-card rounded-xl border border-border p-5 hover:border-primary/50 hover:shadow-md hover:shadow-primary/5 transition-all group"
+                    onClick={() => setSelectedCategory(null)}
+                    className={cn(
+                      "px-4 py-1.5 rounded-full text-sm font-medium transition-colors border",
+                      !selectedCategory
+                        ? "bg-blue-700 text-white border-blue-700"
+                        : "bg-white text-gray-700 border-gray-200 hover:border-blue-300 hover:text-blue-700"
+                    )}
                   >
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors leading-tight">
-                        {svc.name}
-                      </h3>
-                      <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-primary transition-colors shrink-0 mt-0.5" />
-                    </div>
-
-                    {svc.category && (
-                      <span className="inline-block text-xs text-primary bg-primary/10 border border-primary/20 rounded-full px-2 py-0.5 mb-2">
-                        {svc.category}
-                      </span>
-                    )}
-
-                    {svc.description && (
-                      <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{svc.description}</p>
-                    )}
-
-                    <div className="flex flex-wrap items-center gap-2 mt-auto">
-                      {svc.slaResponseHours && (
-                        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                          <Clock className="w-3 h-3" />Resposta em {svc.slaResponseHours}h
-                        </span>
-                      )}
-                      {svc.requiresSelfie && (
-                        <span className="inline-flex items-center gap-1 text-xs text-purple-600 bg-purple-500/10 border border-purple-500/20 rounded px-1.5 py-0.5">
-                          <Camera className="w-3 h-3" />Selfie
-                        </span>
-                      )}
-                      {svc.requiresGeolocation && (
-                        <span className="inline-flex items-center gap-1 text-xs text-primary bg-primary/10 border border-primary/20 rounded px-1.5 py-0.5">
-                          <MapPin className="w-3 h-3" />Localização
-                        </span>
-                      )}
-                      {svc.requiresApproval && (
-                        <span className="inline-flex items-center gap-1 text-xs text-amber-600 bg-amber-500/10 border border-amber-500/20 rounded px-1.5 py-0.5">
-                          <CheckCircle2 className="w-3 h-3" />Aprovação
-                        </span>
-                      )}
-                    </div>
-
-                    {(svc.fieldsCount > 0 || svc.documentsCount > 0) && (
-                      <div className="flex items-center gap-3 mt-3 pt-3 border-t border-border text-xs text-muted-foreground">
-                        {svc.fieldsCount > 0 && (
-                          <span className="flex items-center gap-1">
-                            <FormInput className="w-3 h-3" />{svc.fieldsCount} campo{svc.fieldsCount !== 1 ? "s" : ""}
-                          </span>
-                        )}
-                        {svc.documentsCount > 0 && (
-                          <span className="flex items-center gap-1">
-                            <FileText className="w-3 h-3" />{svc.documentsCount} doc{svc.documentsCount !== 1 ? "s" : ""}
-                          </span>
-                        )}
-                      </div>
-                    )}
+                    Todos os serviços
                   </button>
-                );
-              })}
-            </div>
+                  {categories.map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => setSelectedCategory(selectedCategory === cat ? null : cat)}
+                      className={cn(
+                        "px-4 py-1.5 rounded-full text-sm font-medium transition-colors border",
+                        selectedCategory === cat
+                          ? "bg-blue-700 text-white border-blue-700"
+                          : "bg-white text-gray-700 border-gray-200 hover:border-blue-300 hover:text-blue-700"
+                      )}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {isLoading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <div key={i} className="h-40 rounded-xl bg-gray-100 animate-pulse" />
+                  ))}
+                </div>
+              ) : (services as any[]).length === 0 ? (
+                <div className="text-center py-16 text-gray-500">
+                  <Search className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                  <p className="font-semibold text-gray-700">Nenhum serviço encontrado</p>
+                  <p className="text-sm mt-1">Tente buscar com outros termos ou remova os filtros</p>
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm text-gray-500 mb-4">
+                    {(services as any[]).length} serviço{(services as any[]).length !== 1 ? "s" : ""} disponível{(services as any[]).length !== 1 ? "is" : ""}
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {(services as any[]).map((svc) => {
+                      const secrecy = secrecyLabels[svc.secrecyLevel] ?? secrecyLabels.public;
+                      return (
+                        <button
+                          key={svc.id}
+                          onClick={() => setSelectedService(svc)}
+                          className="text-left bg-white rounded-xl border border-gray-200 p-5 hover:border-blue-300 hover:shadow-md hover:shadow-blue-500/8 transition-all group"
+                        >
+                          <div className="flex items-start justify-between gap-2 mb-2">
+                            <h3 className="font-semibold text-gray-900 group-hover:text-blue-700 transition-colors leading-tight">
+                              {svc.name}
+                            </h3>
+                            <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-blue-500 transition-colors shrink-0 mt-0.5" />
+                          </div>
+                          {svc.category && (
+                            <span className="inline-block text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5 mb-2">
+                              {svc.category}
+                            </span>
+                          )}
+                          {svc.description && (
+                            <p className="text-xs text-gray-500 line-clamp-2 mb-3">{svc.description}</p>
+                          )}
+                          <div className="flex flex-wrap items-center gap-2 mt-auto">
+                            {svc.slaResponseHours && (
+                              <span className="inline-flex items-center gap-1 text-xs text-gray-500">
+                                <Clock className="w-3 h-3" />Resposta em {svc.slaResponseHours}h
+                              </span>
+                            )}
+                            {svc.requiresSelfie && (
+                              <span className="inline-flex items-center gap-1 text-xs text-purple-600 bg-purple-50 border border-purple-200 rounded px-1.5 py-0.5">
+                                <Camera className="w-3 h-3" />Selfie
+                              </span>
+                            )}
+                            {svc.requiresGeolocation && (
+                              <span className="inline-flex items-center gap-1 text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded px-1.5 py-0.5">
+                                <MapPin className="w-3 h-3" />Localização
+                              </span>
+                            )}
+                            {svc.requiresApproval && (
+                              <span className="inline-flex items-center gap-1 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">
+                                <CheckCircle2 className="w-3 h-3" />Aprovação
+                              </span>
+                            )}
+                          </div>
+                          {(svc.fieldsCount > 0 || svc.documentsCount > 0) && (
+                            <div className="flex items-center gap-3 mt-3 pt-3 border-t border-gray-100 text-xs text-gray-400">
+                              {svc.fieldsCount > 0 && (
+                                <span className="flex items-center gap-1">
+                                  <FormInput className="w-3 h-3" />{svc.fieldsCount} campo{svc.fieldsCount !== 1 ? "s" : ""}
+                                </span>
+                              )}
+                              {svc.documentsCount > 0 && (
+                                <span className="flex items-center gap-1">
+                                  <FileText className="w-3 h-3" />{svc.documentsCount} doc{svc.documentsCount !== 1 ? "s" : ""}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </section>
           </>
         )}
 
-        {/* ── Footer info ── */}
-        <div className="mt-12 p-6 rounded-xl bg-card border border-border flex flex-col md:flex-row items-start md:items-center gap-4">
-          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-            <Info className="w-5 h-5 text-primary" />
-          </div>
-          <div className="flex-1">
-            <h4 className="font-semibold text-foreground">Precisa de ajuda?</h4>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Entre em contato com nossa central de atendimento ou acesse a área restrita para acompanhar seus protocolos.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <a href="tel:" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors">
-              <Phone className="w-4 h-4" />Telefone
-            </a>
-            <a href="mailto:" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors">
-              <Mail className="w-4 h-4" />E-mail
-            </a>
-            <a href="/" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors">
-              <Globe className="w-4 h-4" />Portal
-            </a>
-          </div>
-        </div>
+        {/* ── ABA: PERFIS ── */}
+        {activeTab === "profiles" && (
+          <section className="max-w-7xl mx-auto px-4 py-10">
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Serviços por Perfil do Cidadão</h2>
+              <p className="text-gray-500">Encontre rapidamente os serviços mais relevantes para o seu perfil</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+              {CITIZEN_PROFILES.map(({ icon: Icon, label, desc, color }) => (
+                <button
+                  key={label}
+                  onClick={() => { setSearch(label); setActiveTab("services"); }}
+                  className={cn(
+                    "flex flex-col items-center gap-3 p-6 rounded-2xl border-2 bg-white hover:shadow-lg transition-all group text-center",
+                    color.includes("pink") ? "border-pink-100 hover:border-pink-300" :
+                    color.includes("blue") ? "border-blue-100 hover:border-blue-300" :
+                    color.includes("indigo") ? "border-indigo-100 hover:border-indigo-300" :
+                    color.includes("rose") ? "border-rose-100 hover:border-rose-300" :
+                    color.includes("amber") ? "border-amber-100 hover:border-amber-300" :
+                    color.includes("orange") ? "border-orange-100 hover:border-orange-300" :
+                    color.includes("green") ? "border-green-100 hover:border-green-300" :
+                    "border-violet-100 hover:border-violet-300"
+                  )}
+                >
+                  <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center", color.split(" ").slice(0, 2).join(" "))}>
+                    <Icon className={cn("w-7 h-7", color.split(" ")[1])} />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900">{label}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{desc}</p>
+                  </div>
+                  <span className="text-xs text-blue-600 group-hover:underline">Ver serviços →</span>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ── ABA: ÓRGÃOS ── */}
+        {activeTab === "organs" && (
+          <section className="max-w-7xl mx-auto px-4 py-10">
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Órgãos e Secretarias</h2>
+              <p className="text-gray-500">Conheça a estrutura administrativa do município</p>
+            </div>
+            {!orgTree || (orgTree as any[]).length === 0 ? (
+              <div className="text-center py-16 text-gray-400">
+                <Building2 className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                <p className="font-semibold text-gray-600">Estrutura organizacional não cadastrada</p>
+                <p className="text-sm mt-1">Acesse a área administrativa para configurar os órgãos e secretarias</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {(orgTree as any[]).filter((n) => !n.parentId).map((org) => (
+                  <div key={org.id} className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-all">
+                    <div className="flex items-start gap-3 mb-3">
+                      <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+                        <Building2 className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-900 leading-tight">{org.name}</h3>
+                        {org.type && <p className="text-xs text-gray-500 mt-0.5 capitalize">{org.type}</p>}
+                      </div>
+                    </div>
+                    {org.description && (
+                      <p className="text-xs text-gray-500 line-clamp-2 mb-3">{org.description}</p>
+                    )}
+                    {org.children && org.children.length > 0 && (
+                      <div className="pt-3 border-t border-gray-100">
+                        <p className="text-xs text-gray-400 mb-2">{org.children.length} unidade{org.children.length !== 1 ? "s" : ""} vinculada{org.children.length !== 1 ? "s" : ""}</p>
+                        <div className="flex flex-wrap gap-1">
+                          {org.children.slice(0, 3).map((child: any) => (
+                            <span key={child.id} className="text-xs bg-gray-50 border border-gray-200 rounded px-2 py-0.5 text-gray-600">{child.name}</span>
+                          ))}
+                          {org.children.length > 3 && (
+                            <span className="text-xs text-blue-600">+{org.children.length - 3} mais</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    <a href="/estrutura-administrativa" className="mt-3 flex items-center gap-1 text-xs text-blue-600 hover:underline">
+                      Ver estrutura completa <ChevronRight className="w-3 h-3" />
+                    </a>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* ── ABA: AJUDA ── */}
+        {activeTab === "help" && (
+          <section className="max-w-4xl mx-auto px-4 py-10">
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Central de Ajuda ao Cidadão</h2>
+              <p className="text-gray-500">Dúvidas frequentes e canais de atendimento</p>
+            </div>
+            <div className="space-y-3 mb-8">
+              {[
+                { q: "Como faço para consultar o andamento da minha solicitação?", a: "Acesse a página 'Consultar Protocolo' e informe o NUP (Número Único de Protocolo) gerado no momento da solicitação. Você poderá acompanhar todas as etapas do processo." },
+                { q: "Quais documentos são necessários para solicitar um serviço?", a: "Cada serviço possui seus próprios requisitos. Ao clicar no serviço desejado, você verá a lista completa de documentos e informações necessários, com indicação de quais são obrigatórios." },
+                { q: "Posso solicitar serviços sem fazer login?", a: "Alguns serviços estão disponíveis para consulta sem login. Para solicitar formalmente um serviço e receber um NUP, é necessário acessar a Área Restrita com seu login institucional ou certificado digital." },
+                { q: "Como entro em contato com a ouvidoria?", a: "Você pode registrar reclamações, sugestões e elogios diretamente pela plataforma. Acesse 'Ouvidoria' no menu ou entre em contato pelos canais abaixo." },
+                { q: "Qual o prazo para resposta das solicitações?", a: "O prazo varia conforme o tipo de serviço. Cada serviço exibe o SLA (prazo de resposta e conclusão) na sua descrição. Em geral, solicitações são respondidas em até 5 dias úteis." },
+              ].map(({ q, a }, i) => (
+                <details key={i} className="bg-white rounded-xl border border-gray-200 group">
+                  <summary className="flex items-center justify-between p-5 cursor-pointer list-none">
+                    <span className="font-medium text-gray-900 text-sm">{q}</span>
+                    <ChevronDown className="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform shrink-0 ml-3" />
+                  </summary>
+                  <div className="px-5 pb-5 text-sm text-gray-600 leading-relaxed border-t border-gray-100 pt-3">{a}</div>
+                </details>
+              ))}
+            </div>
+
+            {/* Contact channels */}
+            <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6">
+              <h3 className="font-semibold text-blue-900 mb-4 flex items-center gap-2">
+                <MessageSquare className="w-5 h-5" />Canais de Atendimento
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="bg-white rounded-xl border border-blue-100 p-4 text-center">
+                  <Phone className="w-6 h-6 text-blue-600 mx-auto mb-2" />
+                  <p className="font-semibold text-gray-900 text-sm">Telefone</p>
+                  <p className="text-xs text-gray-500 mt-0.5">0800-000-0000</p>
+                  <p className="text-[11px] text-gray-400 mt-0.5">Seg–Sex, 8h–18h</p>
+                </div>
+                <div className="bg-white rounded-xl border border-blue-100 p-4 text-center">
+                  <Mail className="w-6 h-6 text-blue-600 mx-auto mb-2" />
+                  <p className="font-semibold text-gray-900 text-sm">E-mail</p>
+                  <p className="text-xs text-gray-500 mt-0.5">atendimento@municipio.gov.br</p>
+                  <p className="text-[11px] text-gray-400 mt-0.5">Resposta em 24h</p>
+                </div>
+                <div className="bg-white rounded-xl border border-blue-100 p-4 text-center">
+                  <MapPin className="w-6 h-6 text-blue-600 mx-auto mb-2" />
+                  <p className="font-semibold text-gray-900 text-sm">Presencial</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Praça da Prefeitura, s/n</p>
+                  <p className="text-[11px] text-gray-400 mt-0.5">Seg–Sex, 8h–17h</p>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
       </main>
 
-      {/* ── Service Detail Modal ── */}
+      {/* ═══════════════════════════════════════════════════════════════════════
+          RODAPÉ INSTITUCIONAL
+      ═══════════════════════════════════════════════════════════════════════ */}
+      <footer className="bg-gray-900 text-gray-300 mt-auto">
+        <div className="max-w-7xl mx-auto px-4 py-10">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+            {/* Coluna 1: Identidade */}
+            <div className="md:col-span-2">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center">
+                  <Scale className="w-4.5 h-4.5 text-white" />
+                </div>
+                <div>
+                  <p className="font-bold text-white text-sm">CAIUS</p>
+                  <p className="text-[11px] text-gray-400">Plataforma Pública Omnichannel</p>
+                </div>
+              </div>
+              <p className="text-xs text-gray-400 leading-relaxed max-w-xs">
+                Plataforma digital oficial da Prefeitura Municipal de Itabaiana para prestação de serviços públicos ao cidadão.
+              </p>
+            </div>
+
+            {/* Coluna 2: Serviços */}
+            <div>
+              <h4 className="text-xs font-semibold text-white uppercase tracking-wider mb-3">Serviços</h4>
+              <ul className="space-y-2 text-xs text-gray-400">
+                <li><button onClick={() => setActiveTab("services")} className="hover:text-white transition-colors">Catálogo de Serviços</button></li>
+                <li><a href="/consulta" className="hover:text-white transition-colors">Consultar Protocolo</a></li>
+                <li><a href="/estrutura-administrativa" className="hover:text-white transition-colors">Estrutura Administrativa</a></li>
+                <li><button onClick={() => setActiveTab("help")} className="hover:text-white transition-colors">Ajuda ao Cidadão</button></li>
+              </ul>
+            </div>
+
+            {/* Coluna 3: Contato */}
+            <div>
+              <h4 className="text-xs font-semibold text-white uppercase tracking-wider mb-3">Contato</h4>
+              <ul className="space-y-2 text-xs text-gray-400">
+                <li className="flex items-center gap-1.5"><Phone className="w-3 h-3" />0800-000-0000</li>
+                <li className="flex items-center gap-1.5"><Mail className="w-3 h-3" />atendimento@municipio.gov.br</li>
+                <li className="flex items-center gap-1.5"><MapPin className="w-3 h-3" />Praça da Prefeitura, s/n</li>
+                <li className="flex items-center gap-1.5"><Globe className="w-3 h-3" /><a href="/" className="hover:text-white transition-colors">www.itabaiana.se.gov.br</a></li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="border-t border-gray-800 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <p className="text-[11px] text-gray-500">
+              © 2025 Prefeitura Municipal de Itabaiana. Todos os direitos reservados.
+            </p>
+            <div className="flex items-center gap-4 text-[11px] text-gray-500">
+              <a href="/" className="hover:text-gray-300 transition-colors">Política de Privacidade</a>
+              <a href="/" className="hover:text-gray-300 transition-colors">Termos de Uso</a>
+              <a href="/" className="hover:text-gray-300 transition-colors">Acessibilidade</a>
+            </div>
+          </div>
+        </div>
+      </footer>
+
+      {/* ═══════════════════════════════════════════════════════════════════════
+          MODAL DE DETALHE DO SERVIÇO
+      ═══════════════════════════════════════════════════════════════════════ */}
       <Dialog open={!!selectedService} onOpenChange={() => setSelectedService(null)}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto bg-card border-border">
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto bg-white border-gray-200">
           <DialogHeader>
             <div className="flex items-start gap-3">
               <button
                 onClick={() => setSelectedService(null)}
-                className="mt-1 p-1 rounded-lg hover:bg-accent transition-colors"
+                className="mt-1 p-1 rounded-lg hover:bg-gray-100 transition-colors"
               >
-                <ArrowLeft className="w-4 h-4 text-muted-foreground" />
+                <ArrowLeft className="w-4 h-4 text-gray-500" />
               </button>
               <div className="flex-1">
-                <DialogTitle className="text-xl text-foreground">{selectedService?.name}</DialogTitle>
+                <DialogTitle className="text-xl text-gray-900">{selectedService?.name}</DialogTitle>
                 {selectedService?.category && (
-                  <span className="inline-block text-xs text-primary bg-primary/10 border border-primary/20 rounded-full px-2 py-0.5 mt-1">
+                  <span className="inline-block text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5 mt-1">
                     {selectedService.category}
                   </span>
                 )}
@@ -271,59 +599,59 @@ export default function CentralCidadao() {
 
           <div className="space-y-6 py-2">
             {selectedService?.description && (
-              <p className="text-muted-foreground text-sm leading-relaxed">{selectedService.description}</p>
+              <p className="text-gray-600 text-sm leading-relaxed">{selectedService.description}</p>
             )}
 
-            {/* Service info cards */}
+            {/* Info cards */}
             <div className="grid grid-cols-2 gap-3">
               {selectedService?.slaResponseHours && (
-                <div className="p-3 rounded-lg bg-muted border border-border">
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                <div className="p-3 rounded-lg bg-gray-50 border border-gray-200">
+                  <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-1">
                     <Clock className="w-3.5 h-3.5" />Prazo de Resposta
                   </div>
-                  <p className="font-semibold text-foreground">{selectedService.slaResponseHours} horas</p>
+                  <p className="font-semibold text-gray-900">{selectedService.slaResponseHours} horas</p>
                 </div>
               )}
               {selectedService?.slaConclusionHours && (
-                <div className="p-3 rounded-lg bg-muted border border-border">
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                <div className="p-3 rounded-lg bg-gray-50 border border-gray-200">
+                  <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-1">
                     <Clock className="w-3.5 h-3.5" />Prazo de Conclusão
                   </div>
-                  <p className="font-semibold text-foreground">{selectedService.slaConclusionHours} horas</p>
+                  <p className="font-semibold text-gray-900">{selectedService.slaConclusionHours} horas</p>
                 </div>
               )}
-              <div className="p-3 rounded-lg bg-muted border border-border">
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+              <div className="p-3 rounded-lg bg-gray-50 border border-gray-200">
+                <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-1">
                   <Shield className="w-3.5 h-3.5" />Nível de Acesso
                 </div>
-                <p className="font-semibold text-foreground">
+                <p className="font-semibold text-gray-900">
                   {secrecyLabels[selectedService?.secrecyLevel]?.label ?? "Público"}
                 </p>
               </div>
-              <div className="p-3 rounded-lg bg-muted border border-border">
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+              <div className="p-3 rounded-lg bg-gray-50 border border-gray-200">
+                <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-1">
                   <CheckCircle2 className="w-3.5 h-3.5" />Aprovação
                 </div>
-                <p className="font-semibold text-foreground">
+                <p className="font-semibold text-gray-900">
                   {selectedService?.requiresApproval ? "Necessária" : "Automática"}
                 </p>
               </div>
             </div>
 
-            {/* Requirements */}
+            {/* Special requirements */}
             {(selectedService?.requiresSelfie || selectedService?.requiresGeolocation) && (
-              <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30">
-                <h4 className="font-semibold text-amber-600 text-sm mb-2 flex items-center gap-1.5">
+              <div className="p-4 rounded-lg bg-amber-50 border border-amber-200">
+                <h4 className="font-semibold text-amber-700 text-sm mb-2 flex items-center gap-1.5">
                   <Info className="w-4 h-4" />Requisitos Especiais
                 </h4>
                 <div className="flex flex-wrap gap-2">
                   {selectedService.requiresSelfie && (
-                    <span className="inline-flex items-center gap-1.5 text-sm text-amber-600">
+                    <span className="inline-flex items-center gap-1.5 text-sm text-amber-700">
                       <Camera className="w-4 h-4" />Este serviço requer captura de selfie para identificação
                     </span>
                   )}
                   {selectedService.requiresGeolocation && (
-                    <span className="inline-flex items-center gap-1.5 text-sm text-amber-600">
+                    <span className="inline-flex items-center gap-1.5 text-sm text-amber-700">
                       <MapPin className="w-4 h-4" />Este serviço requer confirmação de localização
                     </span>
                   )}
@@ -334,19 +662,19 @@ export default function CentralCidadao() {
             {/* Fields */}
             {detail?.fields && (detail.fields as any[]).length > 0 && (
               <div>
-                <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
-                  <FormInput className="w-4 h-4 text-primary" />
+                <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <FormInput className="w-4 h-4 text-blue-600" />
                   Informações Necessárias
-                  <span className="text-xs font-normal text-muted-foreground">
+                  <span className="text-xs font-normal text-gray-500">
                     ({(detail.fields as any[]).length} campo{(detail.fields as any[]).length !== 1 ? "s" : ""})
                   </span>
                 </h4>
                 <div className="space-y-2">
                   {(detail.fields as any[]).map((f: any) => (
-                    <div key={f.id} className="flex items-center justify-between p-3 rounded-lg bg-muted border border-border">
+                    <div key={f.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50 border border-gray-200">
                       <div>
-                        <span className="text-sm font-medium text-foreground">{f.label}</span>
-                        {f.helpText && <p className="text-xs text-muted-foreground mt-0.5">{f.helpText}</p>}
+                        <span className="text-sm font-medium text-gray-900">{f.label}</span>
+                        {f.helpText && <p className="text-xs text-gray-500 mt-0.5">{f.helpText}</p>}
                       </div>
                       <ReqBadge r={f.requirement} />
                     </div>
@@ -358,22 +686,22 @@ export default function CentralCidadao() {
             {/* Documents */}
             {detail?.documents && (detail.documents as any[]).length > 0 && (
               <div>
-                <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
-                  <FileCheck className="w-4 h-4 text-primary" />
+                <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <FileCheck className="w-4 h-4 text-blue-600" />
                   Documentos Necessários
-                  <span className="text-xs font-normal text-muted-foreground">
+                  <span className="text-xs font-normal text-gray-500">
                     ({(detail.documents as any[]).length} documento{(detail.documents as any[]).length !== 1 ? "s" : ""})
                   </span>
                 </h4>
                 <div className="space-y-2">
                   {(detail.documents as any[]).map((d: any) => (
-                    <div key={d.id} className="flex items-start justify-between gap-3 p-3 rounded-lg bg-muted border border-border">
+                    <div key={d.id} className="flex items-start justify-between gap-3 p-3 rounded-lg bg-gray-50 border border-gray-200">
                       <div className="flex items-start gap-2">
-                        <FileText className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
+                        <FileText className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
                         <div>
-                          <span className="text-sm font-medium text-foreground">{d.name}</span>
-                          {d.description && <p className="text-xs text-muted-foreground mt-0.5">{d.description}</p>}
-                          <p className="text-xs text-muted-foreground/60 mt-0.5">
+                          <span className="text-sm font-medium text-gray-900">{d.name}</span>
+                          {d.description && <p className="text-xs text-gray-500 mt-0.5">{d.description}</p>}
+                          <p className="text-xs text-gray-400 mt-0.5">
                             Formatos: {d.acceptedFormats} · Máx: {d.maxSizeMb}MB
                           </p>
                         </div>
@@ -386,14 +714,16 @@ export default function CentralCidadao() {
             )}
 
             {/* CTA */}
-            <div className="p-4 rounded-xl bg-primary text-primary-foreground">
+            <div className="p-4 rounded-xl bg-blue-700 text-white">
               <h4 className="font-semibold mb-1">Pronto para solicitar?</h4>
-              <p className="text-sm text-primary-foreground/80 mb-3">
+              <p className="text-sm text-blue-100 mb-3">
                 Acesse a área restrita para abrir um protocolo para este serviço.
               </p>
-              <Button variant="secondary" size="sm" className="bg-background text-foreground hover:bg-background/90" asChild>
-                <a href="/">Acessar e Solicitar <ExternalLink className="w-3.5 h-3.5 ml-1.5" /></a>
-              </Button>
+              <a href="/">
+                <button className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white text-blue-700 text-sm font-semibold hover:bg-blue-50 transition-colors">
+                  Acessar e Solicitar <ExternalLink className="w-3.5 h-3.5" />
+                </button>
+              </a>
             </div>
           </div>
         </DialogContent>

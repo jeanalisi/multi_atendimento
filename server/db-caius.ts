@@ -555,3 +555,33 @@ export async function publicLookupByNup(nup: string) {
   if (ombu[0]) return { entity: "ombudsman" as const, data: ombu[0] };
   return null;
 }
+
+// ─── Public CPF/CNPJ Lookup (sem autenticação) ────────────────────────────────
+export async function publicLookupByCpfCnpj(cpfCnpj: string) {
+  const db = await getDb();
+  if (!db) return [];
+  const clean = cpfCnpj.replace(/\D/g, "");
+  const formatted = cpfCnpj.trim();
+  const [protos, ombus] = await Promise.all([
+    db.select({
+      id: protocols.id, nup: protocols.nup, subject: protocols.subject,
+      status: protocols.status, type: protocols.type,
+      createdAt: protocols.createdAt, updatedAt: protocols.updatedAt,
+      isConfidential: protocols.isConfidential,
+    }).from(protocols)
+      .where(or(like(protocols.requesterCpfCnpj, `%${clean}%`), like(protocols.requesterCpfCnpj, `%${formatted}%`)))
+      .orderBy(desc(protocols.createdAt)).limit(20),
+    db.select({
+      id: ombudsmanManifestations.id, nup: ombudsmanManifestations.nup, subject: ombudsmanManifestations.subject,
+      status: ombudsmanManifestations.status, type: ombudsmanManifestations.type,
+      createdAt: ombudsmanManifestations.createdAt, updatedAt: ombudsmanManifestations.updatedAt,
+      isConfidential: ombudsmanManifestations.isConfidential,
+    }).from(ombudsmanManifestations)
+      .where(or(like(ombudsmanManifestations.requesterCpfCnpj, `%${clean}%`), like(ombudsmanManifestations.requesterCpfCnpj, `%${formatted}%`)))
+      .orderBy(desc(ombudsmanManifestations.createdAt)).limit(20),
+  ]);
+  return [
+    ...protos.map((p) => ({ entity: "protocol" as const, data: p })),
+    ...ombus.map((o) => ({ entity: "ombudsman" as const, data: o })),
+  ];
+}

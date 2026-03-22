@@ -417,26 +417,26 @@ export default function Dashboard() {
                   {recentProtocols.map((p: any) => {
                     const proto = p?.protocol ?? p;
                     return (
-                    <div key={proto.id} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-secondary/30 transition-colors">
-                      <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center shrink-0">
-                        <FileText className="w-4 h-4 text-orange-500" />
+                      <div key={proto.id} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-secondary/30 transition-colors">
+                        <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center shrink-0">
+                          <FileText className="w-4 h-4 text-orange-500" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">{proto.subject ?? "Sem assunto"}</p>
+                          <p className="text-xs text-muted-foreground font-mono">{proto.nup}</p>
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "text-[10px] shrink-0",
+                            proto.status === "open" && "border-blue-500/30 text-blue-500 bg-blue-500/5",
+                            proto.status === "concluded" && "border-emerald-500/30 text-emerald-500 bg-emerald-500/5",
+                            proto.status === "in_analysis" && "border-amber-500/30 text-amber-500 bg-amber-500/5",
+                          )}
+                        >
+                          {proto.status === "open" ? "Aberto" : proto.status === "concluded" ? "Concluído" : proto.status === "in_analysis" ? "Em Análise" : proto.status}
+                        </Badge>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">{proto.subject ?? "Sem assunto"}</p>
-                        <p className="text-xs text-muted-foreground font-mono">{proto.nup}</p>
-                      </div>
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          "text-[10px] shrink-0",
-                          proto.status === "open" && "border-blue-500/30 text-blue-500 bg-blue-500/5",
-                          proto.status === "concluded" && "border-emerald-500/30 text-emerald-500 bg-emerald-500/5",
-                          proto.status === "in_analysis" && "border-amber-500/30 text-amber-500 bg-amber-500/5",
-                        )}
-                      >
-                        {proto.status === "open" ? "Aberto" : proto.status === "concluded" ? "Concluído" : proto.status === "in_analysis" ? "Em Análise" : proto.status}
-                      </Badge>
-                    </div>
                     );
                   })}
                 </div>

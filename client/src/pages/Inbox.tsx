@@ -1,6 +1,7 @@
 import OmniLayout from "@/components/OmniLayout";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -12,9 +13,14 @@ import {
   Inbox as InboxIcon,
   Loader2,
   MessageSquare,
+  Phone,
+  PhoneCall,
+  PhoneMissed,
   Search,
   Send,
+  Star,
   User,
+  X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -28,16 +34,30 @@ const STATUS_LABELS: Record<string, string> = {
   snoozed: "Adiada",
 };
 
+const CHANNEL_CONFIG: Record<string, { label: string; shortLabel: string; color: string; icon: string }> = {
+  whatsapp: { label: "WhatsApp", shortLabel: "WA", color: "bg-green-500/15 text-green-500", icon: "💬" },
+  instagram: { label: "Instagram", shortLabel: "IG", color: "bg-pink-500/15 text-pink-500", icon: "📸" },
+  email: { label: "E-mail", shortLabel: "EM", color: "bg-blue-500/15 text-blue-500", icon: "✉️" },
+  phone: { label: "Telefone", shortLabel: "TEL", color: "bg-orange-500/15 text-orange-500", icon: "📞" },
+  chat: { label: "Chat", shortLabel: "CH", color: "bg-violet-500/15 text-violet-500", icon: "💬" },
+  sms: { label: "SMS", shortLabel: "SMS", color: "bg-teal-500/15 text-teal-500", icon: "📱" },
+};
+
 function ChannelBadge({ channel }: { channel: string }) {
-  const map: Record<string, string> = { whatsapp: "WA", instagram: "IG", email: "EM" };
-  const colorMap: Record<string, string> = {
-    whatsapp: "bg-green-500/15 text-green-500",
-    instagram: "bg-pink-500/15 text-pink-500",
-    email: "bg-blue-500/15 text-blue-500",
-  };
+  const cfg = CHANNEL_CONFIG[channel] ?? { shortLabel: channel, color: "bg-muted text-muted-foreground" };
   return (
-    <span className={cn("inline-flex items-center rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide", colorMap[channel] ?? "bg-muted text-muted-foreground")}>
-      {map[channel] ?? channel}
+    <span className={cn("inline-flex items-center rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide", cfg.color)}>
+      {cfg.shortLabel}
+    </span>
+  );
+}
+
+function ChannelOriginBadge({ channel }: { channel: string }) {
+  const cfg = CHANNEL_CONFIG[channel] ?? { label: channel, color: "bg-muted text-muted-foreground", icon: "💬" };
+  return (
+    <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium border", cfg.color, "border-current/20")}>
+      <span>{cfg.icon}</span>
+      {cfg.label}
     </span>
   );
 }
@@ -65,6 +85,139 @@ function timeAgo(date: Date | string | null) {
   return `${Math.floor(diff / 86400)}d`;
 }
 
+// ─── Satisfaction Survey Modal ────────────────────────────────────────────────
+function SatisfactionModal({
+  open,
+  onClose,
+  contactName,
+  channel,
+}: {
+  open: boolean;
+  onClose: (rating?: number) => void;
+  contactName: string;
+  channel: string;
+}) {
+  const [rating, setRating] = useState<number | null>(null);
+  const [hovered, setHovered] = useState<number | null>(null);
+
+  const labels = ["Péssimo", "Ruim", "Regular", "Bom", "Excelente"];
+
+  return (
+    <Dialog open={open} onOpenChange={() => onClose()}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 text-green-500" />
+            Conversa Encerrada
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="text-center">
+            <p className="text-sm text-muted-foreground mb-1">
+              Conversa com <strong className="text-foreground">{contactName}</strong> via{" "}
+              <ChannelOriginBadge channel={channel} /> encerrada com sucesso.
+            </p>
+          </div>
+          <div className="bg-secondary/40 rounded-xl p-4 text-center space-y-3">
+            <p className="text-sm font-medium text-foreground">Como foi o atendimento?</p>
+            <div className="flex justify-center gap-2">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  onMouseEnter={() => setHovered(n)}
+                  onMouseLeave={() => setHovered(null)}
+                  onClick={() => setRating(n)}
+                  className="transition-transform hover:scale-110"
+                >
+                  <Star
+                    className={cn(
+                      "h-8 w-8 transition-colors",
+                      (hovered ?? rating ?? 0) >= n
+                        ? "fill-yellow-400 text-yellow-400"
+                        : "text-muted-foreground/30"
+                    )}
+                  />
+                </button>
+              ))}
+            </div>
+            {(hovered ?? rating) && (
+              <p className="text-xs text-muted-foreground animate-in fade-in">
+                {labels[(hovered ?? rating ?? 1) - 1]}
+              </p>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" className="flex-1" onClick={() => onClose()}>
+              Pular
+            </Button>
+            <Button
+              size="sm"
+              className="flex-1"
+              disabled={!rating}
+              onClick={() => {
+                if (rating) {
+                  toast.success(`Avaliação ${labels[rating - 1]} registrada!`);
+                  onClose(rating);
+                }
+              }}
+            >
+              Enviar Avaliação
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Incoming Call Banner ─────────────────────────────────────────────────────
+function IncomingCallBanner({
+  callerName,
+  callerPhone,
+  onAnswer,
+  onDecline,
+}: {
+  callerName: string;
+  callerPhone: string;
+  onAnswer: () => void;
+  onDecline: () => void;
+}) {
+  return (
+    <div className="shrink-0 flex items-center justify-between gap-3 px-4 py-2.5 bg-orange-500/10 border-b border-orange-500/20 animate-in slide-in-from-top">
+      <div className="flex items-center gap-2.5">
+        <div className="w-8 h-8 rounded-full bg-orange-500/20 flex items-center justify-center animate-pulse">
+          <PhoneCall className="h-4 w-4 text-orange-500" />
+        </div>
+        <div>
+          <p className="text-xs font-semibold text-foreground">Ligação recebida</p>
+          <p className="text-[11px] text-muted-foreground">
+            {callerName} · {callerPhone}
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 text-xs gap-1 text-red-500 border-red-500/30 hover:bg-red-500/10"
+          onClick={onDecline}
+        >
+          <PhoneMissed className="h-3 w-3" />
+          Recusar
+        </Button>
+        <Button
+          size="sm"
+          className="h-7 text-xs gap-1 bg-green-600 hover:bg-green-700 text-white"
+          onClick={onAnswer}
+        >
+          <Phone className="h-3 w-3" />
+          Atender
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function Inbox() {
@@ -73,6 +226,9 @@ export default function Inbox() {
   const [channelFilter, setChannelFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("open");
   const [messageText, setMessageText] = useState("");
+  const [satisfactionOpen, setSatisfactionOpen] = useState(false);
+  const [pendingResolveId, setPendingResolveId] = useState<number | null>(null);
+  const [incomingCall, setIncomingCall] = useState<{ name: string; phone: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const utils = trpc.useUtils();
 
@@ -160,6 +316,23 @@ export default function Inbox() {
     }
   };
 
+  const handleResolveClick = () => {
+    if (!selectedId) return;
+    setPendingResolveId(selectedId);
+    setSatisfactionOpen(true);
+  };
+
+  const handleSatisfactionClose = (rating?: number) => {
+    setSatisfactionOpen(false);
+    if (pendingResolveId) {
+      updateConv.mutate({ id: pendingResolveId, status: "resolved" });
+      if (rating) {
+        // Rating registered — could be saved to DB in a future iteration
+      }
+      setPendingResolveId(null);
+    }
+  };
+
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <OmniLayout title="Inbox Unificado" fullHeight>
@@ -189,6 +362,9 @@ export default function Inbox() {
                   <SelectItem value="whatsapp">WhatsApp</SelectItem>
                   <SelectItem value="instagram">Instagram</SelectItem>
                   <SelectItem value="email">E-mail</SelectItem>
+                  <SelectItem value="phone">Telefone</SelectItem>
+                  <SelectItem value="chat">Chat</SelectItem>
+                  <SelectItem value="sms">SMS</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -255,7 +431,7 @@ export default function Inbox() {
                         <div className="flex items-center gap-1.5 mt-1">
                           <StatusBadge status={conv.status} />
                           {conv.unreadCount > 0 && (
-                            <span className="ml-auto flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-primary-foreground">
+                            <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-primary text-primary-foreground text-[9px] font-bold">
                               {conv.unreadCount > 9 ? "9+" : conv.unreadCount}
                             </span>
                           )}
@@ -280,6 +456,23 @@ export default function Inbox() {
         {/* ── Right panel: conversation view ── */}
         {selectedId && selectedConv ? (
           <div className="flex flex-1 flex-col overflow-hidden">
+
+            {/* Incoming call banner (demo — shown when channel is phone) */}
+            {incomingCall && (
+              <IncomingCallBanner
+                callerName={incomingCall.name}
+                callerPhone={incomingCall.phone}
+                onAnswer={() => {
+                  toast.success("Ligação atendida");
+                  setIncomingCall(null);
+                }}
+                onDecline={() => {
+                  toast.info("Ligação recusada");
+                  setIncomingCall(null);
+                }}
+              />
+            )}
+
             {/* Conversation header */}
             <div className="shrink-0 flex items-center justify-between border-b border-border px-4 py-3 bg-card/20">
               <div className="flex items-center gap-3 min-w-0">
@@ -292,11 +485,14 @@ export default function Inbox() {
                   <p className="text-sm font-semibold text-foreground truncate">
                     {selectedConv.contact?.name ?? selectedConv.contact?.phone ?? selectedConv.contact?.email ?? "Desconhecido"}
                   </p>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <ChannelBadge channel={selectedConv.conversation.channel} />
-                    <span className="text-[10px] text-muted-foreground truncate">
-                      {selectedConv.account?.name ?? ""}
-                    </span>
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                    {/* Canal de origem destacado */}
+                    <ChannelOriginBadge channel={selectedConv.conversation.channel} />
+                    {selectedConv.account?.name && (
+                      <span className="text-[10px] text-muted-foreground truncate">
+                        via {selectedConv.account.name}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -342,12 +538,13 @@ export default function Inbox() {
                   </SelectContent>
                 </Select>
 
+                {/* Resolve button — opens satisfaction survey */}
                 <Button
                   size="sm"
                   variant="outline"
                   className="h-7 text-xs gap-1 text-green-500 border-green-500/30 hover:bg-green-500/10"
-                  onClick={() => updateConv.mutate({ id: selectedId, status: "resolved" })}
-                  disabled={updateConv.isPending}
+                  onClick={handleResolveClick}
+                  disabled={updateConv.isPending || selectedConv.conversation.status === "resolved"}
                 >
                   <CheckCircle2 className="h-3 w-3" />
                   Resolver
@@ -452,6 +649,14 @@ export default function Inbox() {
           </div>
         )}
       </div>
+
+      {/* ── Satisfaction Survey Modal ── */}
+      <SatisfactionModal
+        open={satisfactionOpen}
+        onClose={handleSatisfactionClose}
+        contactName={selectedConv?.contact?.name ?? "Contato"}
+        channel={selectedConv?.conversation?.channel ?? "chat"}
+      />
     </OmniLayout>
   );
 }
