@@ -173,18 +173,18 @@ export const caiusRouter = router({
         parentNup: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        const nup = await createProtocol({ ...input, createdById: ctx.user.id });
+        const { nup, protocolId } = await createProtocol({ ...input, createdById: ctx.user.id });
         await logAudit({
           userId: ctx.user.id,
           userName: ctx.user.name ?? "",
           nup,
           action: "create_protocol",
           entity: "protocol",
+          entityId: protocolId,
           details: { subject: input.subject, type: input.type },
         });
         // Notificação automática ao gerar NUP
         try {
-          // Mapear canal do protocolo para canal de notificação
           const notifChannel = ({
             email: "email",
             whatsapp: "whatsapp",
@@ -196,7 +196,7 @@ export const caiusRouter = router({
           await sendNupNotification({
             nup,
             entityType: "protocol",
-            entityId: 0, // will be resolved by NUP
+            entityId: protocolId,
             channel: notifChannel,
             subject: input.subject,
             recipientAddress: notifChannel === "email" ? input.requesterEmail : input.requesterPhone,
@@ -204,7 +204,7 @@ export const caiusRouter = router({
         } catch (e) {
           console.error("[NUP] Falha ao enviar notificação:", e);
         }
-        return { nup };
+        return { nup, protocolId };
       }),
 
     update: protectedProcedure

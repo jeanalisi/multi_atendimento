@@ -1,6 +1,7 @@
 import OmniLayout from "@/components/OmniLayout";
+import { RichTextEditor } from "@/components/RichTextEditor";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -18,7 +19,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import {
@@ -27,14 +27,16 @@ import {
   Filter,
   Loader2,
   MessageSquare,
+  Paperclip,
   Plus,
   Search,
   Shield,
   Star,
   ThumbsUp,
+  Trash2,
   TriangleAlert,
 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 const TYPE_CONFIG: Record<string, { label: string; icon: any; color: string }> = {
@@ -54,6 +56,15 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   archived: { label: "Arquivada", color: "bg-muted text-muted-foreground border-border" },
 };
 
+const MAX_FILES = 5;
+const MAX_SIZE_MB = 20;
+
+function formatBytes(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 function CreateManifestationDialog({ onCreated }: { onCreated: () => void }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
@@ -66,16 +77,70 @@ function CreateManifestationDialog({ onCreated }: { onCreated: () => void }) {
     requesterPhone: "",
     requesterCpfCnpj: "",
   });
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const uploadAttachment = trpc.attachments.upload.useMutation();
 
   const create = trpc.caius.ombudsman.create.useMutation({
-    onSuccess: (data) => {
+    onSuccess: async (data: any) => {
+      if (pendingFiles.length > 0 && data.manifestationId) {
+        setUploading(true);
+        try {
+          for (const file of pendingFiles) {
+            const base64 = await fileToBase64(file);
+            await uploadAttachment.mutateAsync({
+              entityType: "ombudsman",
+              entityId: data.manifestationId,
+              fileName: file.name,
+              mimeType: file.type,
+              base64Data: base64,
+            });
+          }
+        } catch {
+          toast.error("Manifestação criada, mas alguns anexos falharam");
+        } finally {
+          setUploading(false);
+        }
+      }
       toast.success(`Manifestação registrada com NUP: ${data.nup}`, { duration: 8000 });
       setOpen(false);
       setForm({ type: "complaint", subject: "", description: "", isAnonymous: false, requesterName: "", requesterEmail: "", requesterPhone: "", requesterCpfCnpj: "" });
+      setPendingFiles([]);
       onCreated();
     },
     onError: (e) => toast.error(e.message),
   });
+
+  function fileToBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve((reader.result as string).split(",")[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function handleFileAdd(files: FileList | null) {
+    if (!files) return;
+    const arr = Array.from(files);
+    const valid = arr.filter((f) => {
+      if (f.size > MAX_SIZE_MB * 1024 * 1024) {
+        toast.error(`${f.name} excede ${MAX_SIZE_MB}MB`);
+        return false;
+      }
+      return true;
+    });
+    setPendingFiles((prev) => {
+      const combined = [...prev, ...valid];
+      if (combined.length > MAX_FILES) {
+        toast.error(`Máximo de ${MAX_FILES} arquivos por manifestação`);
+        return combined.slice(0, MAX_FILES);
+      }
+      return combined;
+    });
+  }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -111,11 +176,64 @@ function CreateManifestationDialog({ onCreated }: { onCreated: () => void }) {
             </div>
             <div className="col-span-2">
               <Label>Assunto *</Label>
-              <Input value={form.subject} onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))} placeholder="Assunto da manifestação" className="mt-1" />
+              <Input
+                value={form.subject}
+                onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))}
+                placeholder="Assunto da manifestação"
+                className="mt-1"
+              />
             </div>
+
+            {/* Rich Text Editor */}
             <div className="col-span-2">
               <Label>Descrição *</Label>
-              <Textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} placeholder="Descreva detalhadamente..." rows={4} className="mt-1" />
+              <div className="mt-1">
+                <RichTextEditor
+                  value={form.description}
+                  onChange={(v) => setForm((f) => ({ ...f, description: v }))}
+                  placeholder="Descreva detalhadamente a manifestação..."
+                  minHeight="150px"
+                />
+              </div>
+            </div>
+
+            {/* File Upload */}
+            <div className="col-span-2">
+              <Label>Documentos Anexos</Label>
+              <div
+                className="mt-1 border border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors"
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => { e.preventDefault(); handleFileAdd(e.dataTransfer.files); }}
+              >
+                <Paperclip className="h-5 w-5 mx-auto text-muted-foreground mb-1" />
+                <p className="text-xs text-muted-foreground">
+                  Clique ou arraste arquivos aqui (PDF, Word, imagens — máx. {MAX_SIZE_MB}MB cada, até {MAX_FILES} arquivos)
+                </p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.webp"
+                  className="hidden"
+                  onChange={(e) => handleFileAdd(e.target.files)}
+                />
+              </div>
+              {pendingFiles.length > 0 && (
+                <ul className="mt-2 space-y-1">
+                  {pendingFiles.map((f, i) => (
+                    <li key={i} className="flex items-center justify-between text-xs bg-muted/40 rounded px-3 py-1.5">
+                      <span className="truncate max-w-[80%] text-foreground">{f.name}</span>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <span className="text-muted-foreground">{formatBytes(f.size)}</span>
+                        <button onClick={() => setPendingFiles((p) => p.filter((_, j) => j !== i))} className="text-muted-foreground hover:text-destructive">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </div>
 
@@ -147,10 +265,10 @@ function CreateManifestationDialog({ onCreated }: { onCreated: () => void }) {
           <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
           <Button
             onClick={() => create.mutate(form)}
-            disabled={!form.subject || !form.description || create.isPending}
+            disabled={!form.subject || !form.description || create.isPending || uploading}
           >
-            {create.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Registrar Manifestação
+            {(create.isPending || uploading) && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+            {uploading ? "Enviando anexos..." : "Registrar Manifestação"}
           </Button>
         </div>
       </DialogContent>
@@ -189,7 +307,7 @@ export default function Ombudsman() {
               <Card
                 key={type}
                 className={cn("bg-card border-border cursor-pointer hover:bg-muted/30 transition-colors", typeFilter === type && "border-primary/40 bg-primary/5")}
-                onClick={() => setTypeFilter(typeFilter === type ? "" : type)}
+                onClick={() => setTypeFilter(typeFilter === type ? "all" : type)}
               >
                 <CardContent className="p-4 flex flex-col items-center gap-1">
                   <Icon className={cn("h-5 w-5", cfg.color)} />
@@ -246,7 +364,7 @@ export default function Ombudsman() {
                     </td>
                   </tr>
                 ) : (
-                  manifestations.map(({ manifestation, sector }: any) => {
+                  manifestations.map(({ manifestation }: any) => {
                     const type = TYPE_CONFIG[manifestation.type] ?? TYPE_CONFIG.complaint;
                     const TypeIcon = type.icon;
                     const status = STATUS_CONFIG[manifestation.status] ?? STATUS_CONFIG.received;
@@ -263,6 +381,12 @@ export default function Ombudsman() {
                         </td>
                         <td className="px-4 py-3">
                           <p className="font-medium text-foreground line-clamp-1 max-w-xs">{manifestation.subject}</p>
+                          {manifestation.description && (
+                            <div
+                              className="text-xs text-muted-foreground mt-0.5 line-clamp-1 [&_*]:inline"
+                              dangerouslySetInnerHTML={{ __html: manifestation.description }}
+                            />
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           <span className={cn("inline-flex items-center text-xs border rounded-full px-2 py-0.5", status.color)}>

@@ -174,8 +174,8 @@ export async function createProtocol(data: Omit<InsertProtocol, "nup">) {
   const db = await getDb();
   if (!db) throw new Error("DB unavailable");
   const nup = await generateNup();
-  await db.insert(protocols).values({ ...data, nup });
-  return nup;
+  const result = await db.insert(protocols).values({ ...data, nup });
+  return { nup, protocolId: Number(result[0].insertId) };
 }
 
 export async function updateProtocol(id: number, data: Partial<InsertProtocol>) {

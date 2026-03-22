@@ -477,3 +477,21 @@
 - [x] Anexos são links diretos para S3 (abre em nova aba)
 - [x] Consulta Pública também renderiza despacho como HTML
 - [x] 73 testes passando, TypeScript 0 erros
+
+## Bug: Link de Convite 404 [CORRIGIDO]
+- [x] Criada página AcceptInvite.tsx com exibição dos detalhes do convite (unidade, perfil, validade)
+- [x] Adicionada rota /convite/:token no App.tsx (pública, sem autenticação)
+- [x] Formulário de aceite com confirmação de nome, tratamento de erros (expirado, cancelado, já aceito)
+- [x] Após aceite, exibe tela de sucesso com botão para acessar o sistema
+- [x] TypeScript 0 erros, 73 testes passando
+
+## Fase 27: Editor Rich Text e Anexos em Todos os Módulos de Gestão Pública
+
+- [x] Protocolos: campo "Descrição" no modal de criação → RichTextEditor + upload de documentos
+- [x] Processos Administrativos: campo "Descrição" no modal de criação → RichTextEditor + upload
+- [x] Documentos Oficiais: campo "Conteúdo/Ementa" no modal de criação → RichTextEditor + upload
+- [x] Ouvidoria: campo "Descrição" no modal de criação → RichTextEditor + upload
+- [x] Modelos de Documentos: campo "Conteúdo" no modal de criação/edição → RichTextEditor
+- [x] Visualização: renderizar HTML no campo descrição do ProtocolDetail (dangerouslySetInnerHTML)
+- [x] Backend: createProtocol retorna protocolId para vinculação de anexos
+- [x] TypeScript 0 erros, 73 testes passando

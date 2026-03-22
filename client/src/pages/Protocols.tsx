@@ -1,7 +1,8 @@
 import OmniLayout from "@/components/OmniLayout";
+import { RichTextEditor } from "@/components/RichTextEditor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -18,7 +19,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import {
@@ -29,11 +29,13 @@ import {
   ClipboardList,
   Filter,
   Loader2,
+  Paperclip,
   Plus,
   Search,
+  Trash2,
   XCircle,
 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import ProtocolDetail from "./ProtocolDetail";
 
@@ -64,6 +66,15 @@ const PRIORITY_CONFIG: Record<string, { label: string; color: string }> = {
   urgent: { label: "Urgente", color: "text-red-400" },
 };
 
+const MAX_FILES = 5;
+const MAX_SIZE_MB = 20;
+
+function formatBytes(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 function NupBadge({ nup }: { nup: string }) {
   return (
     <span className="font-mono text-xs bg-primary/10 text-primary border border-primary/20 rounded px-1.5 py-0.5 select-all">
@@ -86,19 +97,74 @@ function CreateProtocolDialog({ onCreated }: { onCreated: () => void }) {
     requesterCpfCnpj: "",
     isConfidential: false,
   });
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: sectors } = trpc.caius.sectors.list.useQuery();
   const [sectorId, setSectorId] = useState<number | undefined>();
 
+  const uploadAttachment = trpc.attachments.upload.useMutation();
+
   const create = trpc.caius.protocols.create.useMutation({
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
+      // Upload pending files linked to the new protocol
+      if (pendingFiles.length > 0) {
+        setUploading(true);
+        try {
+          for (const file of pendingFiles) {
+            const base64 = await fileToBase64(file);
+            await uploadAttachment.mutateAsync({
+              entityType: "protocol",
+              entityId: data.protocolId ?? 0,
+              fileName: file.name,
+              mimeType: file.type,
+              base64Data: base64,
+            });
+          }
+        } catch {
+          toast.error("Protocolo criado, mas alguns anexos falharam");
+        } finally {
+          setUploading(false);
+        }
+      }
       toast.success(`Protocolo criado com NUP: ${data.nup}`, { duration: 8000 });
       setOpen(false);
       setForm({ subject: "", description: "", type: "request", channel: "web", priority: "normal", requesterName: "", requesterEmail: "", requesterPhone: "", requesterCpfCnpj: "", isConfidential: false });
+      setPendingFiles([]);
       onCreated();
     },
     onError: (e) => toast.error("Erro ao criar protocolo: " + e.message),
   });
+
+  function fileToBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve((reader.result as string).split(",")[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function handleFileAdd(files: FileList | null) {
+    if (!files) return;
+    const arr = Array.from(files);
+    const valid = arr.filter((f) => {
+      if (f.size > MAX_SIZE_MB * 1024 * 1024) {
+        toast.error(`${f.name} excede ${MAX_SIZE_MB}MB`);
+        return false;
+      }
+      return true;
+    });
+    setPendingFiles((prev) => {
+      const combined = [...prev, ...valid];
+      if (combined.length > MAX_FILES) {
+        toast.error(`Máximo de ${MAX_FILES} arquivos por protocolo`);
+        return combined.slice(0, MAX_FILES);
+      }
+      return combined;
+    });
+  }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -174,15 +240,57 @@ function CreateProtocolDialog({ onCreated }: { onCreated: () => void }) {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Rich Text Editor */}
             <div className="col-span-2">
               <Label>Descrição</Label>
-              <Textarea
-                value={form.description}
-                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                placeholder="Detalhes da solicitação..."
-                rows={3}
-                className="mt-1"
-              />
+              <div className="mt-1">
+                <RichTextEditor
+                  value={form.description}
+                  onChange={(v) => setForm((f) => ({ ...f, description: v }))}
+                  placeholder="Detalhes da solicitação..."
+                  minHeight="140px"
+                />
+              </div>
+            </div>
+
+            {/* File Upload */}
+            <div className="col-span-2">
+              <Label>Documentos Anexos</Label>
+              <div
+                className="mt-1 border border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors"
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => { e.preventDefault(); handleFileAdd(e.dataTransfer.files); }}
+              >
+                <Paperclip className="h-5 w-5 mx-auto text-muted-foreground mb-1" />
+                <p className="text-xs text-muted-foreground">
+                  Clique ou arraste arquivos aqui (PDF, Word, imagens — máx. {MAX_SIZE_MB}MB cada, até {MAX_FILES} arquivos)
+                </p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.webp"
+                  className="hidden"
+                  onChange={(e) => handleFileAdd(e.target.files)}
+                />
+              </div>
+              {pendingFiles.length > 0 && (
+                <ul className="mt-2 space-y-1">
+                  {pendingFiles.map((f, i) => (
+                    <li key={i} className="flex items-center justify-between text-xs bg-muted/40 rounded px-3 py-1.5">
+                      <span className="truncate max-w-[80%] text-foreground">{f.name}</span>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <span className="text-muted-foreground">{formatBytes(f.size)}</span>
+                        <button onClick={() => setPendingFiles((p) => p.filter((_, j) => j !== i))} className="text-muted-foreground hover:text-destructive">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </div>
 
@@ -212,10 +320,10 @@ function CreateProtocolDialog({ onCreated }: { onCreated: () => void }) {
           <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
           <Button
             onClick={() => create.mutate({ ...form, responsibleSectorId: sectorId })}
-            disabled={!form.subject || create.isPending}
+            disabled={!form.subject || create.isPending || uploading}
           >
-            {create.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Abrir Protocolo e Gerar NUP
+            {(create.isPending || uploading) && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+            {uploading ? "Enviando anexos..." : "Abrir Protocolo e Gerar NUP"}
           </Button>
         </div>
       </DialogContent>
@@ -290,7 +398,7 @@ export default function Protocols() {
               ))}
             </SelectContent>
           </Select>
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
+          <Select value={typeFilter} onValueChange={(v: string) => setTypeFilter(v)}>
             <SelectTrigger className="w-44">
               <SelectValue placeholder="Tipo" />
             </SelectTrigger>

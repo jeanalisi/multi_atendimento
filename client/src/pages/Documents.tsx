@@ -1,4 +1,5 @@
 import OmniLayout from "@/components/OmniLayout";
+import { RichTextEditor } from "@/components/RichTextEditor";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -17,7 +18,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import {
@@ -26,12 +26,14 @@ import {
   FileText,
   Filter,
   Loader2,
+  Paperclip,
   PenLine,
   Plus,
   Search,
   Sparkles,
+  Trash2,
 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 const DOC_TYPE_LABELS: Record<string, string> = {
@@ -53,6 +55,15 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   archived: { label: "Arquivado", color: "bg-muted text-muted-foreground border-border" },
 };
 
+const MAX_FILES = 5;
+const MAX_SIZE_MB = 20;
+
+function formatBytes(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 function CreateDocumentDialog({ onCreated }: { onCreated: () => void }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
@@ -62,17 +73,41 @@ function CreateDocumentDialog({ onCreated }: { onCreated: () => void }) {
     isConfidential: false,
     aiGenerated: false,
   });
-  const [aiAction, setAiAction] = useState<any>("draft_document");
   const [aiLoading, setAiLoading] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: sectors } = trpc.caius.sectors.list.useQuery();
   const [sectorId, setSectorId] = useState<number | undefined>();
 
+  const uploadAttachment = trpc.attachments.upload.useMutation();
+
   const create = trpc.caius.documents.create.useMutation({
-    onSuccess: (data) => {
+    onSuccess: async (data: any) => {
+      if (pendingFiles.length > 0 && data.documentId) {
+        setUploading(true);
+        try {
+          for (const file of pendingFiles) {
+            const base64 = await fileToBase64(file);
+            await uploadAttachment.mutateAsync({
+              entityType: "document",
+              entityId: data.documentId,
+              fileName: file.name,
+              mimeType: file.type,
+              base64Data: base64,
+            });
+          }
+        } catch {
+          toast.error("Documento criado, mas alguns anexos falharam");
+        } finally {
+          setUploading(false);
+        }
+      }
       toast.success(`Documento criado com NUP: ${data.nup}`);
       setOpen(false);
       setForm({ type: "memo", title: "", content: "", isConfidential: false, aiGenerated: false });
+      setPendingFiles([]);
       onCreated();
     },
     onError: (e) => toast.error(e.message),
@@ -89,6 +124,35 @@ function CreateDocumentDialog({ onCreated }: { onCreated: () => void }) {
       toast.error(e.message);
     },
   });
+
+  function fileToBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve((reader.result as string).split(",")[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function handleFileAdd(files: FileList | null) {
+    if (!files) return;
+    const arr = Array.from(files);
+    const valid = arr.filter((f) => {
+      if (f.size > MAX_SIZE_MB * 1024 * 1024) {
+        toast.error(`${f.name} excede ${MAX_SIZE_MB}MB`);
+        return false;
+      }
+      return true;
+    });
+    setPendingFiles((prev) => {
+      const combined = [...prev, ...valid];
+      if (combined.length > MAX_FILES) {
+        toast.error(`Máximo de ${MAX_FILES} arquivos por documento`);
+        return combined.slice(0, MAX_FILES);
+      }
+      return combined;
+    });
+  }
 
   const handleAiGenerate = () => {
     if (!form.title) { toast.error("Informe o título primeiro"); return; }
@@ -147,6 +211,7 @@ function CreateDocumentDialog({ onCreated }: { onCreated: () => void }) {
             </div>
           </div>
 
+          {/* Rich Text Editor com botão IA */}
           <div>
             <div className="flex items-center justify-between mb-1">
               <Label>Conteúdo</Label>
@@ -161,12 +226,11 @@ function CreateDocumentDialog({ onCreated }: { onCreated: () => void }) {
                 Gerar com IA
               </Button>
             </div>
-            <Textarea
+            <RichTextEditor
               value={form.content}
-              onChange={(e) => setForm((f) => ({ ...f, content: e.target.value, aiGenerated: false }))}
+              onChange={(v) => setForm((f) => ({ ...f, content: v, aiGenerated: false }))}
               placeholder="Conteúdo do documento..."
-              rows={10}
-              className="font-mono text-sm"
+              minHeight="220px"
             />
             {form.aiGenerated && (
               <p className="text-xs text-primary/70 mt-1 flex items-center gap-1">
@@ -175,15 +239,54 @@ function CreateDocumentDialog({ onCreated }: { onCreated: () => void }) {
               </p>
             )}
           </div>
+
+          {/* File Upload */}
+          <div>
+            <Label>Documentos Anexos</Label>
+            <div
+              className="mt-1 border border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors"
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => { e.preventDefault(); handleFileAdd(e.dataTransfer.files); }}
+            >
+              <Paperclip className="h-5 w-5 mx-auto text-muted-foreground mb-1" />
+              <p className="text-xs text-muted-foreground">
+                Clique ou arraste arquivos aqui (PDF, Word, imagens — máx. {MAX_SIZE_MB}MB cada, até {MAX_FILES} arquivos)
+              </p>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.webp"
+                className="hidden"
+                onChange={(e) => handleFileAdd(e.target.files)}
+              />
+            </div>
+            {pendingFiles.length > 0 && (
+              <ul className="mt-2 space-y-1">
+                {pendingFiles.map((f, i) => (
+                  <li key={i} className="flex items-center justify-between text-xs bg-muted/40 rounded px-3 py-1.5">
+                    <span className="truncate max-w-[80%] text-foreground">{f.name}</span>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className="text-muted-foreground">{formatBytes(f.size)}</span>
+                      <button onClick={() => setPendingFiles((p) => p.filter((_, j) => j !== i))} className="text-muted-foreground hover:text-destructive">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
           <Button
             onClick={() => create.mutate({ ...form, sectorId })}
-            disabled={!form.title || create.isPending}
+            disabled={!form.title || create.isPending || uploading}
           >
-            {create.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Criar Documento
+            {(create.isPending || uploading) && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+            {uploading ? "Enviando anexos..." : "Criar Documento"}
           </Button>
         </div>
       </DialogContent>
@@ -234,7 +337,6 @@ export default function Documents() {
   return (
     <OmniLayout title="Documentos Oficiais">
       <div className="p-6 space-y-5">
-        {/* Filters */}
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -271,7 +373,6 @@ export default function Documents() {
           <CreateDocumentDialog onCreated={() => utils.caius.documents.list.invalidate()} />
         </div>
 
-        {/* Table */}
         <Card className="bg-card border-border overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -296,17 +397,14 @@ export default function Documents() {
                     </td>
                   </tr>
                 ) : (
-                  documents.map(({ document, sector, author }: any) => {
+                  documents.map(({ document, author, sector }: any) => {
                     const status = STATUS_CONFIG[document.status] ?? STATUS_CONFIG.draft;
                     return (
                       <tr key={document.id} className="hover:bg-muted/30 transition-colors">
                         <td className="px-4 py-3">
                           <span className="font-mono text-xs bg-primary/10 text-primary border border-primary/20 rounded px-1.5 py-0.5">
-                            {document.nup}
+                            {document.nup ?? document.documentNumber ?? "—"}
                           </span>
-                          {document.number && (
-                            <p className="text-xs text-muted-foreground mt-0.5">Nº {document.number}</p>
-                          )}
                         </td>
                         <td className="px-4 py-3">
                           <p className="font-medium text-foreground line-clamp-1 max-w-xs">{document.title}</p>
@@ -316,18 +414,16 @@ export default function Documents() {
                           <span className="text-xs text-muted-foreground">{DOC_TYPE_LABELS[document.type] ?? document.type}</span>
                         </td>
                         <td className="px-4 py-3">
-                          <span className={cn("inline-flex items-center text-xs border rounded-full px-2 py-0.5", status.color)}>
-                            {status.label}
-                          </span>
+                          <span className={cn("text-xs border rounded-full px-2 py-0.5", status.color)}>{status.label}</span>
                         </td>
                         <td className="px-4 py-3">
-                          <span className="text-xs text-muted-foreground">
-                            {new Date(document.createdAt).toLocaleDateString("pt-BR")}
-                          </span>
+                          <span className="text-xs text-muted-foreground">{new Date(document.createdAt).toLocaleDateString("pt-BR")}</span>
                         </td>
                         <td className="px-4 py-3">
-                          {document.status === "pending_signature" && (
+                          {document.status === "draft" || document.status === "pending_signature" ? (
                             <SignDocumentButton documentId={document.id} nup={document.nup} />
+                          ) : (
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
                           )}
                         </td>
                       </tr>

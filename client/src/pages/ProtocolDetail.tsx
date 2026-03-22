@@ -564,7 +564,10 @@ export default function ProtocolDetail({ id, onBack }: Props) {
                 <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Descrição</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-foreground whitespace-pre-wrap">{protocol.description}</p>
+                <div
+                  className="text-sm text-foreground prose prose-sm dark:prose-invert max-w-none"
+                  dangerouslySetInnerHTML={{ __html: protocol.description }}
+                />
               </CardContent>
             </Card>
           )}

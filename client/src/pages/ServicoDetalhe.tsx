@@ -99,7 +99,7 @@ export default function ServicoDetalhe() {
 
   const submitMutation = trpc.cidadao.submitRequest.useMutation({
     onSuccess: (data) => {
-      setNupResult(data.nup);
+      setNupResult(typeof data.nup === "string" ? data.nup : (data as any).nup ?? "");
       setStep("success");
     },
     onError: (e) => toast.error(e.message),

@@ -32,6 +32,7 @@ import AttachmentsManager from "./pages/AttachmentsManager";
 import OrgStructure from "./pages/OrgStructure";
 import Positions from "./pages/Positions";
 import OrgInvites from "./pages/OrgInvites";
+import AcceptInvite from "./pages/AcceptInvite";
 import CentralCidadao from "./pages/CentralCidadao";
 import EstruturaAdministrativa from "./pages/EstruturaAdministrativa";
 import ServicoDetalhe from "./pages/ServicoDetalhe";
@@ -51,6 +52,7 @@ function Router() {
       <Route path={"/consulta"} component={PublicConsulta} />
       <Route path={"/consultar-protocolo"} component={PublicConsulta} />
       <Route path={"/consulta-publica"} component={PublicConsulta} />
+      <Route path={"/convite/:token"} component={AcceptInvite} />
       <Route path={"/central-cidadao"} component={CentralCidadao} />
       <Route path={"/estrutura-administrativa"} component={EstruturaAdministrativa} />
       <Route path={"/estrutura"} component={EstruturaAdministrativa} />
