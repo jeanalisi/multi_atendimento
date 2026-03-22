@@ -23,6 +23,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Textarea } from "@/components/ui/textarea";
 import OmniLayout from "@/components/OmniLayout";
 import { DocumentChancela } from "@/components/DocumentChancela";
+import { DocumentFinalView } from "@/components/DocumentFinalView";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -413,9 +414,9 @@ export function DocumentSignaturesPanel({
 }: DocumentSignaturesProps) {
   const [signDialogOpen, setSignDialogOpen] = useState(false);
   const [issueDialogOpen, setIssueDialogOpen] = useState(false);
-  const [showChancela, setShowChancela] = useState(false);
+  const [showFinalView, setShowFinalView] = useState(false);
+  const [showLegacyChancela, setShowLegacyChancela] = useState(false);
   const [lastAccessCode, setLastAccessCode] = useState<string | null>(null);
-  const chancelaRef = useRef<HTMLDivElement>(null);
 
   const { data: verDoc, refetch } = trpc.verification.getByEntity.useQuery(
     { entityType, entityId },
@@ -423,41 +424,14 @@ export function DocumentSignaturesPanel({
   );
 
   const signatures = verDoc?.signatures ?? [];
+  const hasSigned = signatures.length > 0;
 
   const handleSigned = (accessCode: string) => {
     setLastAccessCode(accessCode);
     refetch();
-    // Auto-show chancela após assinatura
-    setShowChancela(true);
+    // Auto-exibir documento final consolidado após assinatura
+    setShowFinalView(true);
     toast.success(`Assinatura registrada! Código de acesso: ${accessCode}`, { duration: 8000 });
-  };
-
-  const handleDownloadPDF = () => {
-    // Abre a janela de impressão focada na chancela
-    const printContent = chancelaRef.current?.innerHTML;
-    if (!printContent) {
-      toast.error("Nenhuma chancela disponível para download.");
-      return;
-    }
-    const win = window.open("", "_blank");
-    if (!win) { toast.error("Permita pop-ups para fazer o download."); return; }
-    win.document.write(`
-      <!DOCTYPE html>
-      <html lang="pt-BR">
-      <head>
-        <meta charset="UTF-8" />
-        <title>Chancela — ${verDoc?.title ?? "Documento"}</title>
-        <style>
-          body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
-          @media print { body { margin: 0; } }
-        </style>
-      </head>
-      <body>${printContent}</body>
-      </html>
-    `);
-    win.document.close();
-    win.focus();
-    setTimeout(() => { win.print(); }, 500);
   };
 
   return (
@@ -468,20 +442,24 @@ export function DocumentSignaturesPanel({
           <Shield className="w-4 h-4 text-primary" />
           Autenticação e Assinaturas
         </h3>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           {verDoc && (
             <>
               <Button size="sm" variant="outline" onClick={() => setSignDialogOpen(true)}>
                 <PenLine className="w-3.5 h-3.5 mr-1.5" />
                 Assinar
               </Button>
-              <Button size="sm" variant="outline" onClick={handleDownloadPDF}>
-                <Download className="w-3.5 h-3.5 mr-1.5" />
-                Download PDF
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => setShowChancela(!showChancela)}>
-                {showChancela ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-              </Button>
+              {hasSigned && (
+                <Button size="sm" variant="default" onClick={() => setShowFinalView(!showFinalView)}>
+                  <Eye className="w-3.5 h-3.5 mr-1.5" />
+                  {showFinalView ? "Ocultar" : "Visualizar Documento Final"}
+                </Button>
+              )}
+              {!hasSigned && (
+                <Button size="sm" variant="ghost" onClick={() => setShowLegacyChancela(!showLegacyChancela)}>
+                  {showLegacyChancela ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                </Button>
+              )}
             </>
           )}
           {!verDoc && (
@@ -516,8 +494,8 @@ export function DocumentSignaturesPanel({
         </div>
       )}
 
-      {/* Status da chancela */}
-      {verDoc && (
+      {/* Status da chancela (quando não há assinaturas ainda) */}
+      {verDoc && !hasSigned && (
         <div className="rounded-lg border bg-muted/30 p-3 text-sm flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />
@@ -527,17 +505,46 @@ export function DocumentSignaturesPanel({
                 {verDoc.documentType} · Emitido em {formatDate(verDoc.issuedAt)}
                 {verDoc.nup && <span className="ml-2 font-mono">{verDoc.nup}</span>}
               </p>
+              <p className="text-xs text-amber-600 mt-0.5">Chancela emitida — aguardando assinatura</p>
             </div>
           </div>
-          <Badge className="bg-green-100 text-green-800 shrink-0">Autêntico</Badge>
+          <Badge className="bg-amber-100 text-amber-800 shrink-0">Pendente de Assinatura</Badge>
         </div>
       )}
 
-      {/* Lista de assinaturas */}
-      {verDoc && signatures.length > 0 && (
+      {/* Chancela sem assinatura (modo legado) */}
+      {verDoc && !hasSigned && showLegacyChancela && (
+        <DocumentChancela
+          entityType={entityType}
+          entityId={entityId}
+          nup={nup ?? verDoc.nup ?? undefined}
+          title={title ?? verDoc.title}
+          documentType={documentType ?? verDoc.documentType}
+          content={content}
+          issuingUnit={issuingUnit ?? verDoc.issuingUnit ?? undefined}
+        />
+      )}
+
+      {/* DOCUMENTO FINAL CONSOLIDADO (após assinatura) */}
+      {verDoc && hasSigned && showFinalView && (
+        <DocumentFinalView
+          verDoc={{
+            ...verDoc,
+            signatures: signatures as any,
+          }}
+          content={content}
+          nup={nup ?? verDoc.nup ?? undefined}
+          title={title ?? verDoc.title}
+          issuingUnit={issuingUnit ?? verDoc.issuingUnit ?? undefined}
+          versionLabel="Versão Assinada"
+        />
+      )}
+
+      {/* Lista resumida de assinaturas (quando documento final não está expandido) */}
+      {verDoc && hasSigned && !showFinalView && (
         <div className="space-y-2">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            {signatures.length} assinatura{signatures.length > 1 ? "s" : ""}
+            {signatures.length} assinatura{signatures.length > 1 ? "s" : ""} registrada{signatures.length > 1 ? "s" : ""}
           </p>
           {signatures.map((sig) => (
             <div key={sig.id} className="border rounded-lg p-3 flex items-start gap-3">
@@ -562,21 +569,9 @@ export function DocumentSignaturesPanel({
               </div>
             </div>
           ))}
-        </div>
-      )}
-
-      {/* Chancela completa */}
-      {verDoc && showChancela && (
-        <div ref={chancelaRef}>
-          <DocumentChancela
-            entityType={entityType}
-            entityId={entityId}
-            nup={nup ?? verDoc.nup ?? undefined}
-            title={title ?? verDoc.title}
-            documentType={documentType ?? verDoc.documentType}
-            content={content}
-            issuingUnit={issuingUnit ?? verDoc.issuingUnit ?? undefined}
-          />
+          <p className="text-xs text-muted-foreground text-center pt-1">
+            Clique em <strong>"Visualizar Documento Final"</strong> para ver o documento completo com chancela e exportar o PDF.
+          </p>
         </div>
       )}
 

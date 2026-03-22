@@ -660,3 +660,13 @@
 ### Testes Fase 34
 - [x] 76 testes automatizados passando (6 arquivos de teste)
 - [x] TypeScript 0 erros
+
+## Fase 40: Visualização e Exportação do Documento Assinado com Chancela Completa
+
+- [x] Componente DocumentFinalView: visualização consolidada (conteúdo + assinaturas + chancela + QR Code + NUP + link)
+- [x] Exportação PDF consolidada com conteúdo, assinaturas, chancela e dados de verificação
+- [x] Botões pós-assinatura: Visualizar documento final, Baixar PDF, Verificar autenticidade, Copiar link, Exibir QR Code, Histórico
+- [x] Indicação de versão: rascunho, assinada, vigente, exportável
+- [x] Unidade certificadora sempre sendo o órgão emissor
+- [x] Título original preservado na exportação e visualização
+- [x] Testes automatizados passando (76 testes, 6 arquivos)

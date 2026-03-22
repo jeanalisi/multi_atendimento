@@ -12,9 +12,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { toast } from "sonner";
 import {
   Upload, FileText, Shield, CheckCircle2, Download, Eye,
-  PenLine, AlertCircle, Loader2, X, QrCode, Lock, User,
+  PenLine, AlertCircle, Loader2, X, QrCode, Lock, User, Copy, ExternalLink,
 } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { DocumentFinalView, buildDocumentFinalHtml } from "@/components/DocumentFinalView";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -64,6 +65,12 @@ export default function SignExternalPDF() {
   const uploadFile = trpc.attachments.upload.useMutation();
   const issueChancela = trpc.verification.issue.useMutation();
   const signDoc = trpc.verification.sign.useMutation();
+
+  // Buscar documento verificável completo (com assinaturas) após assinatura
+  const { data: finalVerDoc, refetch: refetchVerDoc } = trpc.verification.getByEntity.useQuery(
+    { entityType: "custom", entityId: uploadedAttachmentId ?? 0 },
+    { enabled: step === "done" && uploadedAttachmentId != null, retry: false }
+  );
 
   // ─── Handlers ───────────────────────────────────────────────────────────────
 
@@ -174,90 +181,52 @@ export default function SignExternalPDF() {
       setShowSignDialog(false);
       setStep("done");
       toast.success("Documento assinado e chancela emitida com sucesso!");
+      // Aguardar um instante e buscar o documento final completo
+      setTimeout(() => refetchVerDoc(), 1000);
     } catch (err: any) {
       toast.error(err?.message ?? "Erro ao assinar documento");
     }
   };
 
-  const handleDownload = () => {
-    if (!signedDoc) return;
-    // Abre janela de impressão com o documento + chancela
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) return;
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html lang="pt-BR">
-      <head>
-        <meta charset="UTF-8">
-        <title>${signedDoc.title} — Documento Assinado</title>
-        <style>
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { font-family: 'Times New Roman', serif; background: white; }
-          .page { width: 210mm; min-height: 297mm; padding: 20mm; margin: 0 auto; }
-          .header { text-align: center; border-bottom: 2px solid #1e3a5f; padding-bottom: 12px; margin-bottom: 20px; }
-          .header h1 { font-size: 14pt; color: #1e3a5f; font-weight: bold; }
-          .header p { font-size: 10pt; color: #555; margin-top: 4px; }
-          .pdf-embed { width: 100%; height: 600px; border: 1px solid #ddd; margin: 20px 0; }
-          .chancela { border: 2px solid #1e3a5f; border-radius: 8px; padding: 16px; margin-top: 20px; background: #f8fafc; }
-          .chancela-title { font-size: 11pt; font-weight: bold; color: #1e3a5f; text-align: center; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }
-          .chancela-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 9pt; }
-          .chancela-item label { color: #666; display: block; font-size: 8pt; }
-          .chancela-item span { font-weight: bold; color: #1e3a5f; }
-          .hash { font-family: monospace; font-size: 8pt; word-break: break-all; color: #444; background: #f0f4f8; padding: 6px; border-radius: 4px; margin-top: 8px; }
-          .qr-section { text-align: center; margin-top: 12px; }
-          .qr-section img { width: 80px; height: 80px; }
-          .qr-section p { font-size: 8pt; color: #666; margin-top: 4px; }
-          .footer { text-align: center; font-size: 8pt; color: #888; margin-top: 20px; border-top: 1px solid #ddd; padding-top: 8px; }
-          @media print { body { -webkit-print-color-adjust: exact; } }
-        </style>
-      </head>
-      <body>
-        <div class="page">
-          <div class="header">
-            <h1>DOCUMENTO ASSINADO ELETRONICAMENTE</h1>
-            <p>${signedDoc.title}</p>
-          </div>
-          
-          ${signedDoc.pdfUrl ? `<iframe src="${signedDoc.pdfUrl}" class="pdf-embed"></iframe>` : ""}
-          
-          <div class="chancela">
-            <div class="chancela-title">⬛ Chancela de Autenticidade</div>
-            <div class="chancela-grid">
-              <div class="chancela-item">
-                <label>Título</label>
-                <span>${signedDoc.title}</span>
-              </div>
-              <div class="chancela-item">
-                <label>Código de Acesso</label>
-                <span>${signedDoc.accessCode}</span>
-              </div>
-              <div class="chancela-item">
-                <label>Tipo</label>
-                <span>${signedDoc.documentType}</span>
-              </div>
-              <div class="chancela-item">
-                <label>Data</label>
-                <span>${new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })}</span>
-              </div>
-            </div>
-            <div class="hash">
-              <strong>Hash SHA-256:</strong> ${signedDoc.hash}
-            </div>
-            <div class="qr-section">
-              ${signedDoc.qrCodeUrl ? `<img src="${signedDoc.qrCodeUrl}" alt="QR Code" />` : ""}
-              <p>Verifique a autenticidade em: ${window.location.origin}/verificar/${signedDoc.accessCode}</p>
-            </div>
-          </div>
-          
-          <div class="footer">
-            Documento gerado pelo CAIUS — Sistema de Atendimento ao Cidadão
-          </div>
-        </div>
-        <script>window.onload = () => window.print();</script>
-      </body>
-      </html>
-    `);
-    printWindow.document.close();
+  const handleDownloadConsolidated = () => {
+    if (!signedDoc || !finalVerDoc) {
+      toast.error("Aguarde o carregamento do documento final.");
+      return;
+    }
+    const appTitle = (import.meta.env.VITE_APP_TITLE as string) ?? "CAIUS";
+    const html = buildDocumentFinalHtml(
+      {
+        ...finalVerDoc,
+        signatures: (finalVerDoc.signatures ?? []) as any,
+      },
+      form.notes || undefined,
+      appTitle,
+    );
+    const win = window.open("", "_blank", "width=960,height=750");
+    if (!win) { toast.error("Permita pop-ups para exportar o PDF."); return; }
+    win.document.write(html);
+    win.document.close();
+    const verifyUrl = finalVerDoc.verificationUrl
+      ?? `${window.location.origin}/verificar/${finalVerDoc.verificationKey}`;
+    win.onload = () => {
+      const script = win.document.createElement("script");
+      script.src = "https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js";
+      script.onload = () => {
+        const container = win.document.getElementById("qr-placeholder");
+        if (container && (win as any).QRCode) {
+          container.innerHTML = "";
+          new (win as any).QRCode(container, {
+            text: verifyUrl,
+            width: 90,
+            height: 90,
+            colorDark: "#1a3a6b",
+            colorLight: "#ffffff",
+          });
+        }
+        setTimeout(() => win.print(), 400);
+      };
+      win.document.head.appendChild(script);
+    };
   };
 
   const handleReset = () => {
@@ -486,83 +455,75 @@ export default function SignExternalPDF() {
         {/* ── STEP 4: Concluído ── */}
         {step === "done" && signedDoc && (
           <div className="space-y-6">
-            <div className="text-center py-8">
-              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircle2 className="w-10 h-10 text-green-600" />
+            {/* Banner de sucesso */}
+            <div className="flex items-center gap-4 p-4 bg-green-50 border border-green-200 rounded-xl">
+              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center shrink-0">
+                <CheckCircle2 className="w-6 h-6 text-green-600" />
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Documento Assinado!</h2>
-              <p className="text-gray-500">
-                A chancela foi emitida com sucesso. O documento pode ser verificado publicamente.
-              </p>
-            </div>
-
-            {/* Chancela Visual */}
-            <div className="border-2 border-blue-800 rounded-2xl p-6 bg-gradient-to-br from-blue-50 to-indigo-50">
-              <div className="flex items-center justify-center gap-2 mb-4">
-                <Shield className="w-5 h-5 text-blue-800" />
-                <h3 className="text-sm font-bold text-blue-800 uppercase tracking-widest">
-                  Chancela de Autenticidade
-                </h3>
+              <div className="flex-1">
+                <h2 className="text-lg font-bold text-green-900">Documento Assinado com Sucesso!</h2>
+                <p className="text-sm text-green-700">
+                  A chancela foi emitida. Use os botões abaixo para baixar o PDF consolidado ou verificar a autenticidade.
+                </p>
               </div>
-
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                  <p className="text-xs text-gray-500 mb-0.5">Título</p>
-                  <p className="text-sm font-semibold text-gray-900">{signedDoc.title}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 mb-0.5">Código de Acesso</p>
-                  <p className="text-sm font-bold text-blue-800 font-mono">{signedDoc.accessCode}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 mb-0.5">Data de Assinatura</p>
-                  <p className="text-sm font-semibold text-gray-900">
-                    {new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 mb-0.5">Tipo</p>
-                  <p className="text-sm font-semibold text-gray-900">{signedDoc.documentType}</p>
-                </div>
-              </div>
-
-              <div className="bg-white/60 rounded-xl p-3 mb-4">
-                <p className="text-xs text-gray-500 mb-1">Hash SHA-256</p>
-                <p className="text-xs font-mono text-gray-700 break-all">{signedDoc.hash}</p>
-              </div>
-
-              {signedDoc.qrCodeUrl && (
-                <div className="flex items-center gap-4 bg-white/60 rounded-xl p-3">
-                  <img src={signedDoc.qrCodeUrl} alt="QR Code" className="w-20 h-20 shrink-0" />
-                  <div>
-                    <p className="text-xs font-medium text-gray-700 mb-1">Verificação Pública</p>
-                    <p className="text-xs text-gray-500 break-all">
-                      {window.location.origin}/verificar/{signedDoc.accessCode}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Ações */}
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Button onClick={handleDownload} className="flex-1 gap-2" size="lg">
-                <Download className="w-4 h-4" />
-                Download PDF com Chancela
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => window.open(`/verificar/${signedDoc.accessCode}`, "_blank")}
-                className="flex-1 gap-2"
-              >
-                <QrCode className="w-4 h-4" />
-                Verificar Autenticidade
-              </Button>
-              <Button variant="outline" onClick={handleReset} className="gap-2">
+              <Button variant="outline" onClick={handleReset} className="gap-2 shrink-0">
                 <Upload className="w-4 h-4" />
                 Novo Documento
               </Button>
             </div>
+
+            {/* Visualização consolidada do documento final */}
+            {finalVerDoc ? (
+              <DocumentFinalView
+                verDoc={{
+                  ...finalVerDoc,
+                  signatures: (finalVerDoc.signatures ?? []) as any,
+                }}
+                content={form.notes || undefined}
+                title={signedDoc.title}
+                issuingUnit={form.issuingUnit || undefined}
+                versionLabel="Versão Assinada"
+              />
+            ) : (
+              // Fallback enquanto carrega o documento final
+              <div className="border-2 border-primary/20 rounded-2xl p-6 bg-primary/3">
+                <div className="flex items-center justify-center gap-2 mb-4">
+                  <Shield className="w-5 h-5 text-primary" />
+                  <h3 className="text-sm font-bold text-primary uppercase tracking-widest">
+                    Chancela de Autenticidade
+                  </h3>
+                </div>
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-0.5">Título</p>
+                    <p className="text-sm font-semibold">{signedDoc.title}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-0.5">Chave de Verificação</p>
+                    <p className="text-sm font-bold text-primary font-mono">{signedDoc.accessCode}</p>
+                  </div>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-3 mt-4">
+                  <Button
+                    onClick={handleDownloadConsolidated}
+                    disabled={!finalVerDoc}
+                    className="flex-1 gap-2"
+                    size="lg"
+                  >
+                    <Download className="w-4 h-4" />
+                    {finalVerDoc ? "Baixar PDF Consolidado" : "Carregando..."}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => window.open(`${window.location.origin}/verificar/${signedDoc.accessCode}`, "_blank")}
+                    className="flex-1 gap-2"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    Verificar Autenticidade
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
