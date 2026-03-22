@@ -430,3 +430,9 @@
 - [x] Tela de login: redirecionamento automático investigado — o sistema não tem redirect automático; o fluxo OAuth redireciona para `/` após login (comportamento correto)
 - [x] Gestão Pública: corrigir erro `Select.Item value=""` — todos os filtros e modais corrigidos (Protocolos, Processos, Documentos, Ouvidoria, Modelos, ServicoDetalhe, Sectors, ProtocolDetail)
 - [x] 73 testes passando, TypeScript 0 erros
+
+## Fase 24: Alteração do Prefixo NUP [CONCLUÍDO]
+- [x] Alterar prefixo do NUP de "CAIUS" para "PMI" na função `generateNup()` em `server/db-caius.ts`
+- [x] Atualizar placeholder e texto de exemplo na página de Consulta Pública (PublicConsulta.tsx)
+- [x] Novos protocolos gerados com formato PMI-AAAA-NNNNNN (ex: PMI-2026-000001)
+- [x] 73 testes passando, TypeScript 0 erros

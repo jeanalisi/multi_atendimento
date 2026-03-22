@@ -136,7 +136,7 @@ function NupSearch() {
           value={nupInput}
           onChange={(e) => setNupInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-          placeholder="Ex: CAIUS-2026-000001"
+          placeholder="Ex: PMI-2026-000001"
           className="font-mono text-sm flex-1 bg-white border-gray-300 text-gray-900 placeholder:text-gray-400"
         />
         <Button
@@ -149,7 +149,7 @@ function NupSearch() {
         </Button>
       </div>
       <p className="text-xs text-gray-500">
-        O NUP é fornecido no momento do registro do protocolo ou manifestação. Formato: CAIUS-AAAA-NNNNNN
+        O NUP é fornecido no momento do registro do protocolo ou manifestação. Formato: PMI-AAAA-NNNNNN
       </p>
 
       {searchNup && !isLoading && (

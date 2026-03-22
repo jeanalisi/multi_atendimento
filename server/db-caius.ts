@@ -28,7 +28,7 @@ import {
 } from "../drizzle/schema";
 
 // ─── NUP Generation ───────────────────────────────────────────────────────────
-// Format: CAIUS-YYYY-NNNNNN (e.g. CAIUS-2026-000001)
+// Format: PMI-YYYY-NNNNNN (e.g. PMI-2026-000001)
 export async function generateNup(): Promise<string> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
@@ -55,7 +55,7 @@ export async function generateNup(): Promise<string> {
   }
 
   const padded = String(sequence).padStart(6, "0");
-  return `CAIUS-${year}-${padded}`;
+  return `PMI-${year}-${padded}`;
 }
 
 export async function isNupUnique(nup: string): Promise<boolean> {
