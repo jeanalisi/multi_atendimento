@@ -14,6 +14,7 @@ import {
   InsertUser,
   Message,
   Notification,
+  NupNotification,
   Queue,
   Ticket,
   accounts,
@@ -22,6 +23,7 @@ import {
   conversations,
   messages,
   notifications,
+  nupNotifications,
   queue,
   tags,
   tickets,
@@ -452,4 +454,115 @@ export async function deleteTag(id: number) {
   const db = await getDb();
   if (!db) return;
   await db.delete(tags).where(eq(tags.id, id));
+}
+
+// ─── Contacts: findOrCreate ───────────────────────────────────────────────────
+/**
+ * Busca um contato por identificador principal (email, phone ou igHandle).
+ * Se não encontrar, cria um novo.
+ * CPF/CNPJ são opcionais e complementares — nunca são usados como identificador principal.
+ */
+export async function findOrCreateContact(params: {
+  email?: string;
+  phone?: string;
+  igHandle?: string;
+  cpfCnpj?: string;
+  name?: string;
+}): Promise<Contact> {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+
+  // Validação: ao menos um identificador principal obrigatório
+  if (!params.email && !params.phone && !params.igHandle) {
+    throw new Error("Ao menos um identificador principal é obrigatório: e-mail, telefone ou conta do Instagram.");
+  }
+
+  // Busca por identificador principal (prioridade: email > phone > igHandle)
+  const conditions = [];
+  if (params.email) conditions.push(eq(contacts.email, params.email));
+  if (params.phone) conditions.push(eq(contacts.phone, params.phone));
+  if (params.igHandle) conditions.push(eq(contacts.igHandle, params.igHandle));
+
+  const existing = await db.select().from(contacts)
+    .where(or(...conditions))
+    .limit(1);
+
+  if (existing.length > 0) {
+    // Atualiza dados complementares se fornecidos
+    const updates: Partial<InsertContact> = {};
+    if (params.name && !existing[0].name) updates.name = params.name;
+    if (params.cpfCnpj && !existing[0].cpfCnpj) updates.cpfCnpj = params.cpfCnpj;
+    if (params.email && !existing[0].email) updates.email = params.email;
+    if (params.phone && !existing[0].phone) updates.phone = params.phone;
+    if (params.igHandle && !existing[0].igHandle) updates.igHandle = params.igHandle;
+    if (Object.keys(updates).length > 0) {
+      await db.update(contacts).set(updates).where(eq(contacts.id, existing[0].id));
+    }
+    return { ...existing[0], ...updates };
+  }
+
+  // Cria novo contato
+  const result = await db.insert(contacts).values({
+    email: params.email,
+    phone: params.phone,
+    igHandle: params.igHandle,
+    cpfCnpj: params.cpfCnpj,
+    name: params.name,
+  });
+  const newId = (result[0] as any).insertId;
+  const newContact = await db.select().from(contacts).where(eq(contacts.id, newId)).limit(1);
+  return newContact[0];
+}
+
+// ─── NUP Notifications ────────────────────────────────────────────────────────
+export async function createNupNotification(data: {
+  nup: string;
+  entityType: "protocol" | "conversation" | "ombudsman" | "process";
+  entityId: number;
+  contactId?: number;
+  channel: "email" | "whatsapp" | "instagram" | "sms" | "system";
+  recipientAddress?: string;
+  content?: string;
+  trackingLink?: string;
+  trackingToken?: string;
+  status?: "pending" | "sent" | "failed" | "skipped";
+  sentAt?: Date;
+  errorMessage?: string;
+}): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.insert(nupNotifications).values({
+    ...data,
+    status: data.status ?? "pending",
+  });
+  return (result[0] as any).insertId;
+}
+
+export async function updateNupNotificationStatus(id: number, status: "sent" | "failed" | "skipped", errorMessage?: string) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(nupNotifications).set({
+    status,
+    sentAt: status === "sent" ? new Date() : undefined,
+    errorMessage: errorMessage ?? null,
+  }).where(eq(nupNotifications.id, id));
+}
+
+export async function getNupNotifications(nup: string): Promise<NupNotification[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(nupNotifications)
+    .where(eq(nupNotifications.nup, nup))
+    .orderBy(desc(nupNotifications.createdAt));
+}
+
+export async function getNupNotificationsByEntity(entityType: string, entityId: number): Promise<NupNotification[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(nupNotifications)
+    .where(and(
+      eq(nupNotifications.entityType, entityType as any),
+      eq(nupNotifications.entityId, entityId)
+    ))
+    .orderBy(desc(nupNotifications.createdAt));
 }

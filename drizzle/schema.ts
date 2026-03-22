@@ -865,3 +865,27 @@ export const serviceSubjects = mysqlTable("serviceSubjects", {
 }));
 export type ServiceSubject = typeof serviceSubjects.$inferSelect;
 export type InsertServiceSubject = typeof serviceSubjects.$inferInsert;
+
+// ─── NUP Notifications (Notificações automáticas ao gerar NUP) ────────────────
+export const nupNotifications = mysqlTable("nupNotifications", {
+  id: int("id").autoincrement().primaryKey(),
+  nup: varchar("nup", { length: 32 }).notNull(),
+  entityType: mysqlEnum("entityType", ["protocol", "conversation", "ombudsman", "process"]).notNull(),
+  entityId: int("entityId").notNull(),
+  contactId: int("contactId"),
+  channel: mysqlEnum("channel", ["email", "whatsapp", "instagram", "sms", "system"]).notNull(),
+  recipientAddress: varchar("recipientAddress", { length: 512 }),  // email, phone, igHandle
+  status: mysqlEnum("status", ["pending", "sent", "failed", "skipped"]).default("pending").notNull(),
+  sentAt: timestamp("sentAt"),
+  content: text("content"),           // mensagem enviada
+  trackingLink: text("trackingLink"), // link de acompanhamento gerado
+  trackingToken: varchar("trackingToken", { length: 128 }),
+  errorMessage: text("errorMessage"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({
+  nupIdx: index("nn_nup_idx").on(table.nup),
+  entityIdx: index("nn_entity_idx").on(table.entityType, table.entityId),
+  contactIdx: index("nn_contact_idx").on(table.contactId),
+}));
+export type NupNotification = typeof nupNotifications.$inferSelect;
+export type InsertNupNotification = typeof nupNotifications.$inferInsert;

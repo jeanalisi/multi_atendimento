@@ -376,3 +376,50 @@
 - [x] Diferenciação visual: área pública = cards, busca, linguagem cidadã, sem menus administrativos
 - [x] TypeScript: 0 erros de compilação
 - [x] 73 testes passando
+
+## Fase 21: Novo Atendimento com Identificadores Obrigatórios de Contato [CONCLUÍDO]
+
+### Regras de Negócio
+- [x] Ao menos UM dos identificadores obrigatórios deve ser informado: e-mail, telefone ou conta do Instagram
+- [x] CPF e CNPJ são opcionais e complementares — nunca substituem o identificador principal
+- [x] CPF/CNPJ só podem ser informados se houver ao menos um identificador principal
+- [x] O canal da conversa deve ser coerente com o identificador utilizado na abertura
+- [x] Telefone → WhatsApp/SMS; E-mail → E-mail; Instagram → Instagram
+
+### Backend
+- [x] Tabela nupNotifications criada (nup, entityType, channel, status, sentAt, content, trackingLink, contactId)
+- [x] Procedure: contacts.findOrCreate (busca por email/phone/igHandle, cria se não existir)
+- [x] Procedure: contacts.list (busca de contatos com filtros)
+- [x] Validação: rejeitar abertura de conversa sem ao menos um identificador principal
+- [x] Validação: canal compatível com o identificador utilizado
+
+### Frontend
+- [x] Modal "Novo Atendimento" com campos: E-mail, Telefone, Instagram (ao menos 1 obrigatório)
+- [x] Campos opcionais: CPF/CNPJ
+- [x] Validação em tempo real: ao menos um identificador principal preenchido
+- [x] Seleção automática do canal baseada no identificador informado
+- [x] Botão "Novo Atendimento" no Inbox
+
+## Fase 22: Notificação Automática ao Gerar NUP [CONCLUÍDO]
+
+### Regras de Negócio
+- [x] Toda geração de NUP dispara notificação automática ao usuário/cidadão
+- [x] Canal da notificação = canal de origem do contato
+- [x] Mensagem contém: confirmação, NUP, assunto/tipo, link de acompanhamento, próximos passos
+- [x] Link de acompanhamento é seguro (token HMAC-SHA256)
+- [x] Envio registrado em log (data, canal, status, conteúdo, link)
+
+### Backend
+- [x] Tabela: nupNotifications (nup, entityType, entityId, channel, status, sentAt, content, trackingLink, contactId)
+- [x] Helper: generateTrackingToken(nup, contactId) — gera token HMAC-SHA256
+- [x] Helper: generateTrackingLink(nup, token) — gera link /consulta?nup=NUP&token=TOKEN
+- [x] Procedure: nup.sendNotification (identifica canal, envia, registra log)
+- [x] Procedure: nup.getNotifications (listar logs por NUP)
+- [x] Integração com sendEmail para canal e-mail
+- [x] Trigger automático: ao criar protocolo (protocols.create), chama sendNupNotification
+- [x] Trigger automático: ao criar solicitação pública (cidadao.submitRequest), chama sendNupNotification
+
+### Frontend
+- [x] Botão "Novo Atendimento" no Inbox com modal completo
+- [x] TypeScript: 0 erros de compilação
+- [x] 73 testes passando

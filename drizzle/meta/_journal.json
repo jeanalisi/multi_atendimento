@@ -50,6 +50,13 @@
       "when": 1774148721870,
       "tag": "0006_tiresome_dreadnoughts",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1774149692224,
+      "tag": "0007_aspiring_shatterstar",
+      "breakpoints": true
     }
   ]
 }

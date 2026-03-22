@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { invokeLLM } from "./_core/llm";
+import { sendNupNotification } from "./nup-notification";
 import {
   createAdminProcess,
   createAiProvider,
@@ -180,6 +181,28 @@ export const caiusRouter = router({
           entity: "protocol",
           details: { subject: input.subject, type: input.type },
         });
+        // Notificação automática ao gerar NUP
+        try {
+          // Mapear canal do protocolo para canal de notificação
+          const notifChannel = ({
+            email: "email",
+            whatsapp: "whatsapp",
+            instagram: "instagram",
+            web: "system",
+            phone: "sms",
+            in_person: "system",
+          } as const)[input.channel] ?? "system";
+          await sendNupNotification({
+            nup,
+            entityType: "protocol",
+            entityId: 0, // will be resolved by NUP
+            channel: notifChannel,
+            subject: input.subject,
+            recipientAddress: notifChannel === "email" ? input.requesterEmail : input.requesterPhone,
+          });
+        } catch (e) {
+          console.error("[NUP] Falha ao enviar notificação:", e);
+        }
         return { nup };
       }),
 

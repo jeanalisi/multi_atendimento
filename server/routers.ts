@@ -40,7 +40,12 @@ import {
   updateUser,
   createConversation,
   upsertContact,
+  findOrCreateContact,
+  getContacts,
+  getNupNotifications,
+  getNupNotificationsByEntity,
 } from "./db";
+import { sendNupNotification } from "./nup-notification";
 import {
   connectWhatsApp,
   disconnectWhatsApp,
@@ -230,20 +235,34 @@ export const appRouter = router({
       .input(z.object({
         accountId: z.number(),
         channel: z.enum(["whatsapp", "instagram", "email"]),
-        contactName: z.string().optional(),
+        // Identificadores principais (ao menos um obrigatório)
+        contactId: z.number().optional(),      // se já existe o contato
+        contactEmail: z.string().email().optional(),
         contactPhone: z.string().optional(),
-        contactEmail: z.string().optional(),
+        contactIgHandle: z.string().optional(),
+        // Complementares
+        contactName: z.string().optional(),
+        contactCpfCnpj: z.string().optional(),
         subject: z.string().optional(),
-      }))
+      }).refine(
+        (d) => !!(d.contactId || d.contactEmail || d.contactPhone || d.contactIgHandle),
+        { message: "Ao menos um identificador de contato é obrigatório: e-mail, telefone ou Instagram." }
+      ))
       .mutation(async ({ input }) => {
-        const contactId = await upsertContact({
-          name: input.contactName,
-          phone: input.contactPhone,
-          email: input.contactEmail,
-        });
+        let resolvedContactId = input.contactId;
+        if (!resolvedContactId) {
+          const contact = await findOrCreateContact({
+            email: input.contactEmail,
+            phone: input.contactPhone,
+            igHandle: input.contactIgHandle,
+            cpfCnpj: input.contactCpfCnpj,
+            name: input.contactName,
+          });
+          resolvedContactId = contact.id;
+        }
         const id = await createConversation({
           accountId: input.accountId,
-          contactId,
+          contactId: resolvedContactId,
           channel: input.channel,
           subject: input.subject,
           status: "open",
@@ -449,6 +468,62 @@ export const appRouter = router({
     stats: protectedProcedure.query(() => getConversationStats()),
   }),
 
+  // ── Contacts ──────────────────────────────────────────────────────────────
+  contacts: router({
+    // Busca ou cria contato — exige ao menos um identificador principal
+    findOrCreate: protectedProcedure
+      .input(z.object({
+        email: z.string().email().optional(),
+        phone: z.string().min(8).max(20).optional(),
+        igHandle: z.string().min(1).max(128).optional(),
+        cpfCnpj: z.string().optional(),
+        name: z.string().optional(),
+      }).refine(
+        (d) => !!(d.email || d.phone || d.igHandle),
+        { message: "Ao menos um identificador principal é obrigatório: e-mail, telefone ou conta do Instagram." }
+      ))
+      .mutation(async ({ input }) => {
+        return findOrCreateContact(input);
+      }),
+    list: protectedProcedure
+      .input(z.object({ search: z.string().optional() }).optional())
+      .query(async ({ input }) => {
+        return getContacts(input?.search);
+      }),
+  }),
+  // ── NUP Notifications ──────────────────────────────────────────────────────
+  nup: router({
+    // Envia notificação automática ao gerar NUP
+    sendNotification: protectedProcedure
+      .input(z.object({
+        nup: z.string(),
+        entityType: z.enum(["protocol", "conversation", "ombudsman", "process"]),
+        entityId: z.number(),
+        contactId: z.number().optional(),
+        channel: z.enum(["email", "whatsapp", "instagram", "sms", "system"]),
+        recipientAddress: z.string().optional(),
+        subject: z.string().optional(),
+        serviceTypeName: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        return sendNupNotification(input);
+      }),
+    // Busca notificações por NUP
+    getByNup: protectedProcedure
+      .input(z.object({ nup: z.string() }))
+      .query(async ({ input }) => {
+        return getNupNotifications(input.nup);
+      }),
+    // Busca notificações por entidade
+    getByEntity: protectedProcedure
+      .input(z.object({
+        entityType: z.enum(["protocol", "conversation", "ombudsman", "process"]),
+        entityId: z.number(),
+      }))
+      .query(async ({ input }) => {
+        return getNupNotificationsByEntity(input.entityType, input.entityId);
+      }),
+  }),
   voice: router({
     // Upload audio and transcribe via Whisper API
     transcribe: protectedProcedure

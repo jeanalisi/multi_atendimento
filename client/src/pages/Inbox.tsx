@@ -1,4 +1,5 @@
 import OmniLayout from "@/components/OmniLayout";
+import { NewConversationModal } from "@/components/NewConversationModal";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -13,6 +14,7 @@ import {
   Inbox as InboxIcon,
   Loader2,
   MessageSquare,
+  MessageSquarePlus,
   Phone,
   PhoneCall,
   PhoneMissed,
@@ -229,6 +231,7 @@ export default function Inbox() {
   const [satisfactionOpen, setSatisfactionOpen] = useState(false);
   const [pendingResolveId, setPendingResolveId] = useState<number | null>(null);
   const [incomingCall, setIncomingCall] = useState<{ name: string; phone: string } | null>(null);
+  const [newConvOpen, setNewConvOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const utils = trpc.useUtils();
 
@@ -343,6 +346,14 @@ export default function Inbox() {
         <aside className="flex w-80 shrink-0 flex-col border-r border-border bg-card/20 overflow-hidden">
           {/* Filters */}
           <div className="shrink-0 space-y-2 border-b border-border p-3">
+            <Button
+              size="sm"
+              className="w-full gap-1.5 h-8 text-xs"
+              onClick={() => setNewConvOpen(true)}
+            >
+              <MessageSquarePlus className="h-3.5 w-3.5" />
+              Novo Atendimento
+            </Button>
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
@@ -656,6 +667,18 @@ export default function Inbox() {
         onClose={handleSatisfactionClose}
         contactName={selectedConv?.contact?.name ?? "Contato"}
         channel={selectedConv?.conversation?.channel ?? "chat"}
+      />
+
+      {/* ── New Conversation Modal ── */}
+      <NewConversationModal
+        open={newConvOpen}
+        onClose={() => setNewConvOpen(false)}
+        onSuccess={(conversationId) => {
+          setNewConvOpen(false);
+          utils.conversations.list.invalidate();
+          setSelectedId(conversationId);
+          toast.success("Atendimento iniciado com sucesso!");
+        }}
       />
     </OmniLayout>
   );
