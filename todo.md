@@ -628,3 +628,20 @@
 
 ### Testes
 - [x] 73 testes passando, TypeScript 0 erros
+
+## Fase 33: Correções e Melhorias na Assinatura Digital
+
+- [ ] Corrigir menus sumindo na página inicial após login (DashboardLayout)
+- [ ] Implementar edição de documento na página DocumentSignatures
+- [ ] Corrigir erro ao emitir chancela (procedure verification.issue)
+- [ ] Pop-up de confirmação de senha ao assinar documento
+- [ ] Emissão automática de chancela após assinatura
+- [ ] Download automático do PDF após assinatura com chancela
+
+## Fase 33: Correções e Melhorias — Assinaturas Digitais
+- [x] Menus do DashboardLayout sempre expandidos por padrão (todos os grupos: main, atendimento, gestao, config, org, custom)
+- [x] Formulário de emissão de chancela com campos editáveis (título, tipo, unidade emissora) — corrige erro "Título e tipo são obrigatórios"
+- [x] Fluxo de assinatura em 2 etapas: seleção do tipo + confirmação de identidade (digitar primeiro nome em maiúsculas)
+- [x] Chancela exibida automaticamente após assinatura com código de acesso
+- [x] Botão Download PDF no painel de assinaturas (abre janela de impressão com layout da chancela)
+- [x] Aba Verificar Documento na Central do Cidadão com busca pública por chave

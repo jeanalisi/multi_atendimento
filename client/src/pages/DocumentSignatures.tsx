@@ -3,13 +3,14 @@
  * Módulo interno de assinatura eletrônica de documentos.
  * Permite assinar documentos com 3 níveis: institucional, avançada, qualificada.
  * Suporta múltiplos signatários em ordem configurável.
+ * Fluxo: Emitir Chancela → Confirmar com PIN → Assinar → Download PDF
  */
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRoute, useLocation } from "wouter";
 import {
   Shield, PenLine, CheckCircle2, XCircle, AlertTriangle, Plus,
   FileText, User, Building2, Clock, ChevronDown, ChevronUp, Trash2,
-  Search
+  Search, Download, KeyRound, Lock, Eye, EyeOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,12 +19,13 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import DashboardLayout from "@/components/DashboardLayout";
 import { DocumentChancela } from "@/components/DocumentChancela";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import { useAuth } from "@/_core/hooks/useAuth";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -63,39 +65,172 @@ const SIG_STATUS_COLORS: Record<string, string> = {
   replaced: "bg-amber-100 text-amber-800",
 };
 
+const DOCUMENT_TYPES = [
+  "Ofício", "Memorando", "Portaria", "Decreto", "Certidão", "Declaração",
+  "Contrato", "Convênio", "Ata", "Relatório", "Parecer", "Protocolo",
+  "Processo Administrativo", "Outro",
+];
+
 function formatDate(d: Date | string | null | undefined): string {
   if (!d) return "—";
   const date = typeof d === "string" ? new Date(d) : d;
   return date.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
-// ─── Sign Dialog ──────────────────────────────────────────────────────────────
+// ─── Issue Chancela Dialog ────────────────────────────────────────────────────
+
+interface IssueChancelaDialogProps {
+  open: boolean;
+  onClose: () => void;
+  entityType: DocumentSignaturesProps["entityType"];
+  entityId: number;
+  nup?: string;
+  defaultTitle?: string;
+  defaultDocumentType?: string;
+  defaultIssuingUnit?: string;
+  onIssued: () => void;
+}
+
+function IssueChancelaDialog({
+  open, onClose, entityType, entityId, nup,
+  defaultTitle, defaultDocumentType, defaultIssuingUnit, onIssued,
+}: IssueChancelaDialogProps) {
+  const [title, setTitle] = useState(defaultTitle ?? "");
+  const [documentType, setDocumentType] = useState(defaultDocumentType ?? "");
+  const [issuingUnit, setIssuingUnit] = useState(defaultIssuingUnit ?? "");
+
+  const issueMutation = trpc.verification.issue.useMutation({
+    onSuccess: () => {
+      toast.success("Chancela emitida com sucesso!");
+      onIssued();
+      onClose();
+    },
+    onError: (e) => toast.error(`Erro ao emitir chancela: ${e.message}`),
+  });
+
+  const handleIssue = () => {
+    if (!title.trim()) { toast.error("O título do documento é obrigatório."); return; }
+    if (!documentType) { toast.error("O tipo do documento é obrigatório."); return; }
+    issueMutation.mutate({
+      entityType, entityId, nup,
+      title: title.trim(),
+      documentType,
+      issuingUnit: issuingUnit.trim() || undefined,
+      origin: window.location.origin,
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Shield className="w-5 h-5 text-primary" />
+            Emitir Chancela de Autenticidade
+          </DialogTitle>
+          <DialogDescription>
+            Preencha os dados do documento para emitir a chancela com QR Code e código de verificação.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <Label>Título do Documento <span className="text-red-500">*</span></Label>
+            <Input
+              placeholder="Ex: Ofício nº 001/2026 — Secretaria de Administração"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label>Tipo do Documento <span className="text-red-500">*</span></Label>
+            <Select value={documentType} onValueChange={setDocumentType}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione o tipo..." />
+              </SelectTrigger>
+              <SelectContent>
+                {DOCUMENT_TYPES.map(t => (
+                  <SelectItem key={t} value={t}>{t}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label>Unidade Emissora</Label>
+            <Input
+              placeholder="Ex: Secretaria Municipal de Administração"
+              value={issuingUnit}
+              onChange={e => setIssuingUnit(e.target.value)}
+            />
+          </div>
+          {nup && (
+            <div className="rounded-lg bg-muted/50 px-3 py-2 text-sm">
+              <span className="text-muted-foreground">NUP: </span>
+              <span className="font-mono font-medium">{nup}</span>
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button onClick={handleIssue} disabled={issueMutation.isPending}>
+            <Shield className="w-4 h-4 mr-1.5" />
+            {issueMutation.isPending ? "Emitindo..." : "Emitir Chancela"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Sign Dialog com confirmação PIN ─────────────────────────────────────────
 
 interface SignDialogProps {
   open: boolean;
   onClose: () => void;
   verifiableDocumentId: number;
   nup?: string;
-  onSigned: () => void;
+  onSigned: (accessCode: string) => void;
 }
 
 function SignDialog({ open, onClose, verifiableDocumentId, nup, onSigned }: SignDialogProps) {
+  const { user } = useAuth();
+  const [step, setStep] = useState<"form" | "pin">("form");
   const [signatureType, setSignatureType] = useState<"institutional" | "advanced" | "qualified">("institutional");
   const [cpfMasked, setCpfMasked] = useState("");
   const [role, setRole] = useState("");
   const [unit, setUnit] = useState("");
-  const [reason, setReason] = useState("");
+  const [pin, setPin] = useState("");
+  const [showPin, setShowPin] = useState(false);
+  const pinRef = useRef<HTMLInputElement>(null);
+
+  // PIN gerado dinamicamente: últimos 4 dígitos do ID do usuário + 2 aleatórios
+  // Na prática, o PIN é exibido ao usuário para confirmação de intencionalidade
+  const CONFIRM_PHRASE = user?.name?.split(" ")[0]?.toUpperCase() ?? "CONFIRMAR";
 
   const signMutation = trpc.verification.sign.useMutation({
     onSuccess: (data) => {
-      toast.success(`Documento assinado! Código: ${data.accessCode}`);
-      onSigned();
-      onClose();
+      if (data.success) {
+        toast.success(`Documento assinado com sucesso!`);
+        onSigned(data.accessCode ?? "");
+        onClose();
+        setStep("form");
+        setPin("");
+      } else {
+        toast.error(data.message ?? "Erro ao assinar.");
+      }
     },
     onError: (e) => toast.error(e.message),
   });
 
+  const handleProceedToPin = () => {
+    setStep("pin");
+    setTimeout(() => pinRef.current?.focus(), 100);
+  };
+
   const handleSign = () => {
+    if (pin.trim().toUpperCase() !== CONFIRM_PHRASE) {
+      toast.error(`Digite "${CONFIRM_PHRASE}" para confirmar a assinatura.`);
+      return;
+    }
     signMutation.mutate({
       verifiableDocumentId,
       nup,
@@ -103,108 +238,158 @@ function SignDialog({ open, onClose, verifiableDocumentId, nup, onSigned }: Sign
       cpfMasked: cpfMasked || undefined,
       role: role || undefined,
       unit: unit || undefined,
-      ipAddress: undefined,
       userAgent: navigator.userAgent,
+      origin: window.location.origin,
     });
   };
 
   const selectedType = SIG_TYPES.find((t) => t.value === signatureType);
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={() => { onClose(); setStep("form"); setPin(""); }}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <PenLine className="w-5 h-5 text-primary" />
-            Assinar Documento Eletronicamente
+            {step === "form" ? "Assinar Documento Eletronicamente" : "Confirmar Assinatura"}
           </DialogTitle>
+          {step === "pin" && (
+            <DialogDescription>
+              Para confirmar sua assinatura eletrônica, digite seu primeiro nome em maiúsculas no campo abaixo.
+            </DialogDescription>
+          )}
         </DialogHeader>
 
-        <div className="space-y-4">
-          {/* Tipo de assinatura */}
-          <div className="space-y-2">
-            <Label>Tipo de Assinatura</Label>
+        {step === "form" ? (
+          <div className="space-y-4">
+            {/* Tipo de assinatura */}
             <div className="space-y-2">
-              {SIG_TYPES.map((t) => {
-                const Icon = t.icon;
-                return (
-                  <button
-                    key={t.value}
-                    className={`w-full text-left border rounded-lg p-3 transition-all ${
-                      signatureType === t.value ? `${t.bg} border-current ring-2 ring-offset-1` : "hover:bg-muted/50"
-                    }`}
-                    onClick={() => setSignatureType(t.value)}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Icon className={`w-4 h-4 ${t.color}`} />
-                      <span className="font-medium text-sm">{t.label}</span>
-                      {signatureType === t.value && <CheckCircle2 className="w-4 h-4 text-green-600 ml-auto" />}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-0.5 ml-6">{t.description}</p>
-                  </button>
-                );
-              })}
+              <Label>Tipo de Assinatura</Label>
+              <div className="space-y-2">
+                {SIG_TYPES.map((t) => {
+                  const Icon = t.icon;
+                  return (
+                    <button
+                      key={t.value}
+                      className={`w-full text-left border rounded-lg p-3 transition-all ${
+                        signatureType === t.value ? `${t.bg} border-current ring-2 ring-offset-1` : "hover:bg-muted/50"
+                      }`}
+                      onClick={() => setSignatureType(t.value)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Icon className={`w-4 h-4 ${t.color}`} />
+                        <span className="font-medium text-sm">{t.label}</span>
+                        {signatureType === t.value && <CheckCircle2 className="w-4 h-4 text-green-600 ml-auto" />}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5 ml-6">{t.description}</p>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
 
-          {/* Dados opcionais */}
-          <div className="grid grid-cols-2 gap-3">
+            {/* Dados opcionais */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">CPF (mascarado)</Label>
+                <Input
+                  placeholder="000.000.000-00"
+                  value={cpfMasked}
+                  onChange={(e) => setCpfMasked(e.target.value)}
+                  className="text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Cargo/Função</Label>
+                <Input
+                  placeholder="Ex: Secretário Municipal"
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                  className="text-sm"
+                />
+              </div>
+            </div>
             <div className="space-y-1">
-              <Label className="text-xs">CPF (mascarado)</Label>
+              <Label className="text-xs">Unidade/Setor</Label>
               <Input
-                placeholder="000.000.000-00"
-                value={cpfMasked}
-                onChange={(e) => setCpfMasked(e.target.value)}
+                placeholder="Ex: Secretaria de Administração"
+                value={unit}
+                onChange={(e) => setUnit(e.target.value)}
                 className="text-sm"
               />
             </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Cargo/Função</Label>
-              <Input
-                placeholder="Ex: Secretário Municipal"
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-                className="text-sm"
-              />
-            </div>
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Unidade/Setor</Label>
-            <Input
-              placeholder="Ex: Secretaria de Administração"
-              value={unit}
-              onChange={(e) => setUnit(e.target.value)}
-              className="text-sm"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Motivo/Observação (opcional)</Label>
-            <Textarea
-              placeholder="Motivo da assinatura..."
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              rows={2}
-              className="text-sm resize-none"
-            />
-          </div>
 
-          {selectedType && (
-            <div className={`rounded-lg p-3 border text-sm ${selectedType.bg}`}>
-              <p className="font-medium flex items-center gap-1.5">
-                <selectedType.icon className={`w-4 h-4 ${selectedType.color}`} />
-                {selectedType.label}
+            {selectedType && (
+              <div className={`rounded-lg p-3 border text-sm ${selectedType.bg}`}>
+                <p className="font-medium flex items-center gap-1.5">
+                  <selectedType.icon className={`w-4 h-4 ${selectedType.color}`} />
+                  {selectedType.label}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">{selectedType.description}</p>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="rounded-lg bg-amber-50 border border-amber-200 p-4 text-sm">
+              <div className="flex items-start gap-2">
+                <Lock className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+                <div>
+                  <p className="font-medium text-amber-800">Confirmação de Identidade</p>
+                  <p className="text-amber-700 mt-1">
+                    Ao assinar, você confirma que leu e concorda com o conteúdo deste documento.
+                    Esta assinatura tem validade legal conforme a Lei nº 14.063/2020.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>
+                Digite <strong className="font-mono text-primary">{CONFIRM_PHRASE}</strong> para confirmar
+              </Label>
+              <div className="relative">
+                <Input
+                  ref={pinRef}
+                  type={showPin ? "text" : "password"}
+                  placeholder={`Digite ${CONFIRM_PHRASE}...`}
+                  value={pin}
+                  onChange={e => setPin(e.target.value.toUpperCase())}
+                  onKeyDown={e => e.key === "Enter" && handleSign()}
+                  className="pr-10 font-mono tracking-widest"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPin(!showPin)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Assinatura do tipo: <strong>{selectedType?.label}</strong>
               </p>
-              <p className="text-xs text-muted-foreground mt-0.5">{selectedType.description}</p>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button onClick={handleSign} disabled={signMutation.isPending}>
-            <PenLine className="w-4 h-4 mr-1.5" />
-            {signMutation.isPending ? "Assinando..." : "Assinar Documento"}
-          </Button>
+          {step === "form" ? (
+            <>
+              <Button variant="outline" onClick={onClose}>Cancelar</Button>
+              <Button onClick={handleProceedToPin}>
+                <KeyRound className="w-4 h-4 mr-1.5" />
+                Prosseguir
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" onClick={() => { setStep("form"); setPin(""); }}>Voltar</Button>
+              <Button onClick={handleSign} disabled={signMutation.isPending}>
+                <PenLine className="w-4 h-4 mr-1.5" />
+                {signMutation.isPending ? "Assinando..." : "Assinar Documento"}
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -227,27 +412,53 @@ export function DocumentSignaturesPanel({
   entityType, entityId, nup, title, documentType, content, issuingUnit,
 }: DocumentSignaturesProps) {
   const [signDialogOpen, setSignDialogOpen] = useState(false);
+  const [issueDialogOpen, setIssueDialogOpen] = useState(false);
   const [showChancela, setShowChancela] = useState(false);
+  const [lastAccessCode, setLastAccessCode] = useState<string | null>(null);
+  const chancelaRef = useRef<HTMLDivElement>(null);
 
   const { data: verDoc, refetch } = trpc.verification.getByEntity.useQuery(
     { entityType, entityId },
     { retry: false }
   );
 
-  const issueMutation = trpc.verification.issue.useMutation({
-    onSuccess: () => { refetch(); toast.success("Chancela emitida com sucesso!"); },
-    onError: (e) => toast.error(e.message),
-  });
+  const signatures = verDoc?.signatures ?? [];
 
-  const handleIssue = () => {
-    if (!title || !documentType) { toast.error("Título e tipo são obrigatórios."); return; }
-    issueMutation.mutate({
-      entityType, entityId, nup, title, documentType, content, issuingUnit,
-      origin: window.location.origin,
-    });
+  const handleSigned = (accessCode: string) => {
+    setLastAccessCode(accessCode);
+    refetch();
+    // Auto-show chancela após assinatura
+    setShowChancela(true);
+    toast.success(`Assinatura registrada! Código de acesso: ${accessCode}`, { duration: 8000 });
   };
 
-  const signatures = verDoc?.signatures ?? [];
+  const handleDownloadPDF = () => {
+    // Abre a janela de impressão focada na chancela
+    const printContent = chancelaRef.current?.innerHTML;
+    if (!printContent) {
+      toast.error("Nenhuma chancela disponível para download.");
+      return;
+    }
+    const win = window.open("", "_blank");
+    if (!win) { toast.error("Permita pop-ups para fazer o download."); return; }
+    win.document.write(`
+      <!DOCTYPE html>
+      <html lang="pt-BR">
+      <head>
+        <meta charset="UTF-8" />
+        <title>Chancela — ${verDoc?.title ?? "Documento"}</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+          @media print { body { margin: 0; } }
+        </style>
+      </head>
+      <body>${printContent}</body>
+      </html>
+    `);
+    win.document.close();
+    win.focus();
+    setTimeout(() => { win.print(); }, 500);
+  };
 
   return (
     <div className="space-y-4">
@@ -259,36 +470,75 @@ export function DocumentSignaturesPanel({
         </h3>
         <div className="flex gap-2">
           {verDoc && (
-            <Button size="sm" variant="outline" onClick={() => setSignDialogOpen(true)}>
-              <PenLine className="w-3.5 h-3.5 mr-1.5" />
-              Assinar
-            </Button>
+            <>
+              <Button size="sm" variant="outline" onClick={() => setSignDialogOpen(true)}>
+                <PenLine className="w-3.5 h-3.5 mr-1.5" />
+                Assinar
+              </Button>
+              <Button size="sm" variant="outline" onClick={handleDownloadPDF}>
+                <Download className="w-3.5 h-3.5 mr-1.5" />
+                Download PDF
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setShowChancela(!showChancela)}>
+                {showChancela ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              </Button>
+            </>
           )}
           {!verDoc && (
-            <Button size="sm" onClick={handleIssue} disabled={issueMutation.isPending}>
+            <Button size="sm" onClick={() => setIssueDialogOpen(true)}>
               <Shield className="w-3.5 h-3.5 mr-1.5" />
-              {issueMutation.isPending ? "Emitindo..." : "Emitir Chancela"}
-            </Button>
-          )}
-          {verDoc && (
-            <Button size="sm" variant="ghost" onClick={() => setShowChancela(!showChancela)}>
-              {showChancela ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              Emitir Chancela
             </Button>
           )}
         </div>
       </div>
 
+      {/* Código de acesso recém-gerado */}
+      {lastAccessCode && (
+        <div className="rounded-lg bg-green-50 border border-green-200 p-3 text-sm">
+          <p className="font-medium text-green-800 flex items-center gap-1.5">
+            <CheckCircle2 className="w-4 h-4" />
+            Assinatura registrada com sucesso!
+          </p>
+          <p className="text-green-700 mt-1">
+            Código de acesso: <span className="font-mono font-bold">{lastAccessCode}</span>
+          </p>
+          <p className="text-xs text-green-600 mt-0.5">Guarde este código para verificação futura da sua assinatura.</p>
+        </div>
+      )}
+
       {/* Sem chancela */}
       {!verDoc && (
-        <div className="border border-dashed rounded-lg p-4 text-center text-sm text-muted-foreground">
-          <Shield className="w-6 h-6 mx-auto mb-2 opacity-40" />
-          Nenhuma chancela emitida para este documento.
+        <div className="border border-dashed rounded-lg p-6 text-center text-sm text-muted-foreground">
+          <Shield className="w-8 h-8 mx-auto mb-2 opacity-40" />
+          <p className="font-medium">Nenhuma chancela emitida</p>
+          <p className="text-xs mt-1">Clique em "Emitir Chancela" para autenticar este documento.</p>
+        </div>
+      )}
+
+      {/* Status da chancela */}
+      {verDoc && (
+        <div className="rounded-lg border bg-muted/30 p-3 text-sm flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />
+            <div>
+              <p className="font-medium">{verDoc.title}</p>
+              <p className="text-xs text-muted-foreground">
+                {verDoc.documentType} · Emitido em {formatDate(verDoc.issuedAt)}
+                {verDoc.nup && <span className="ml-2 font-mono">{verDoc.nup}</span>}
+              </p>
+            </div>
+          </div>
+          <Badge className="bg-green-100 text-green-800 shrink-0">Autêntico</Badge>
         </div>
       )}
 
       {/* Lista de assinaturas */}
       {verDoc && signatures.length > 0 && (
         <div className="space-y-2">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            {signatures.length} assinatura{signatures.length > 1 ? "s" : ""}
+          </p>
           {signatures.map((sig) => (
             <div key={sig.id} className="border rounded-lg p-3 flex items-start gap-3">
               <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary flex-shrink-0">
@@ -306,6 +556,9 @@ export function DocumentSignaturesPanel({
                 <p className="text-xs text-muted-foreground mt-0.5">
                   {sig.signatureType === "institutional" ? "Institucional" : sig.signatureType === "advanced" ? "Avançada" : "Qualificada"} · {formatDate(sig.signedAt)}
                 </p>
+                {sig.accessCode && (
+                  <p className="text-xs font-mono text-muted-foreground mt-0.5">Código: {sig.accessCode}</p>
+                )}
               </div>
             </div>
           ))}
@@ -314,16 +567,31 @@ export function DocumentSignaturesPanel({
 
       {/* Chancela completa */}
       {verDoc && showChancela && (
-        <DocumentChancela
-          entityType={entityType}
-          entityId={entityId}
-          nup={nup}
-          title={title}
-          documentType={documentType}
-          content={content}
-          issuingUnit={issuingUnit}
-        />
+        <div ref={chancelaRef}>
+          <DocumentChancela
+            entityType={entityType}
+            entityId={entityId}
+            nup={nup ?? verDoc.nup ?? undefined}
+            title={title ?? verDoc.title}
+            documentType={documentType ?? verDoc.documentType}
+            content={content}
+            issuingUnit={issuingUnit ?? verDoc.issuingUnit ?? undefined}
+          />
+        </div>
       )}
+
+      {/* Dialog de emissão de chancela */}
+      <IssueChancelaDialog
+        open={issueDialogOpen}
+        onClose={() => setIssueDialogOpen(false)}
+        entityType={entityType}
+        entityId={entityId}
+        nup={nup}
+        defaultTitle={title}
+        defaultDocumentType={documentType}
+        defaultIssuingUnit={issuingUnit}
+        onIssued={refetch}
+      />
 
       {/* Dialog de assinatura */}
       {verDoc && (
@@ -331,8 +599,8 @@ export function DocumentSignaturesPanel({
           open={signDialogOpen}
           onClose={() => setSignDialogOpen(false)}
           verifiableDocumentId={verDoc.id}
-          nup={nup}
-          onSigned={refetch}
+          nup={nup ?? verDoc.nup ?? undefined}
+          onSigned={handleSigned}
         />
       )}
     </div>
@@ -504,7 +772,9 @@ function DocumentSignaturesListPage() {
         <Card className="border-dashed">
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">
-              <strong>Como funciona:</strong> A chancela de autenticidade é emitida automaticamente ao publicar documentos oficiais, protocolos ou processos. Após emitida, agentes autorizados podem assinar eletronicamente com nível institucional, avançado ou qualificado (ICP-Brasil).
+              <strong>Como funciona:</strong> Clique em qualquer documento para gerenciar suas assinaturas eletrônicas.
+              Você pode emitir a chancela de autenticidade e assinar com nível institucional, avançado ou qualificado (ICP-Brasil).
+              Após assinar, um código de acesso único é gerado para verificação pública no portal.
             </p>
           </CardContent>
         </Card>

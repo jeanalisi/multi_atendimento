@@ -182,17 +182,23 @@ function DashboardLayoutContent({
 
   const activeModules = (customModules as any[]).filter((m: any) => m.isActive);
 
-  // Collapsible state per group
+  // Collapsible state per group — all groups start expanded by default
+  const DEFAULT_OPEN_GROUPS = { main: true, atendimento: true, gestao: true, config: true, org: true, custom: true };
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
-    const saved = localStorage.getItem("sidebar-groups");
-    if (saved) try { return JSON.parse(saved); } catch { }
-    return { main: true, atendimento: true, gestao: true, config: false, org: false, custom: true };
+    const saved = localStorage.getItem("sidebar-groups-v2");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // Merge with defaults so new groups always start open
+        return { ...DEFAULT_OPEN_GROUPS, ...parsed };
+      } catch { }
+    }
+    return DEFAULT_OPEN_GROUPS;
   });
-
   const toggleGroup = (key: string) => {
     setOpenGroups(prev => {
       const next = { ...prev, [key]: !prev[key] };
-      localStorage.setItem("sidebar-groups", JSON.stringify(next));
+      localStorage.setItem("sidebar-groups-v2", JSON.stringify(next));
       return next;
     });
   };
