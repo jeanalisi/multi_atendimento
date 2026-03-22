@@ -1,4 +1,3 @@
-import OmniLayout from "@/components/OmniLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,9 +16,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
+import { RichTextEditor } from "@/components/RichTextEditor";
 import {
   ArrowLeft,
   ArrowRight,
@@ -32,11 +31,15 @@ import {
   Loader2,
   Lock,
   MessageSquare,
+  Paperclip,
   Send,
   Sparkles,
+  Trash2,
+  Upload,
   User,
+  X,
 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
@@ -58,41 +61,147 @@ const ACTION_LABELS: Record<string, string> = {
   comment: "Comentário",
 };
 
+const ACTION_COLORS: Record<string, string> = {
+  forward: "bg-blue-500/10 text-blue-400 border-blue-500/20",
+  return: "bg-orange-500/10 text-orange-400 border-orange-500/20",
+  assign: "bg-purple-500/10 text-purple-400 border-purple-500/20",
+  conclude: "bg-green-500/10 text-green-400 border-green-500/20",
+  archive: "bg-muted text-muted-foreground border-border",
+  reopen: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
+  comment: "bg-primary/10 text-primary border-primary/20",
+};
+
+const MAX_FILES = 5;
+const MAX_FILE_MB = 20;
+
+interface PendingFile {
+  file: File;
+  base64: string;
+}
+
 interface Props {
   id: number;
   onBack: () => void;
 }
 
+// ─── TramitationDialog ────────────────────────────────────────────────────────
 function TramitationDialog({ protocolId, nup, onDone }: { protocolId: number; nup: string; onDone: () => void }) {
   const [open, setOpen] = useState(false);
   const [action, setAction] = useState<any>("forward");
   const [dispatch, setDispatch] = useState("");
   const [toSectorId, setToSectorId] = useState<number | undefined>();
+  const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const { data: sectors } = trpc.caius.sectors.list.useQuery();
 
+  const uploadAttachment = trpc.attachments.upload.useMutation();
+
   const create = trpc.caius.tramitations.create.useMutation({
-    onSuccess: () => {
+    onSuccess: async (data: any) => {
+      // Upload pending files after tramitation is created
+      if (pendingFiles.length > 0 && data?.tramitationId) {
+        setUploading(true);
+        try {
+          await Promise.all(
+            pendingFiles.map((pf) =>
+              uploadAttachment.mutateAsync({
+                entityType: "tramitation",
+                entityId: data.tramitationId,
+                nup,
+                fileName: pf.file.name,
+                mimeType: pf.file.type,
+                base64Data: pf.base64,
+                category: "despacho",
+              })
+            )
+          );
+        } catch {
+          toast.error("Tramitação registrada, mas alguns anexos falharam.");
+        } finally {
+          setUploading(false);
+        }
+      }
       toast.success("Tramitação registrada com sucesso");
       setOpen(false);
       setDispatch("");
+      setPendingFiles([]);
       onDone();
     },
     onError: (e) => toast.error(e.message),
   });
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+
+    const remaining = MAX_FILES - pendingFiles.length;
+    if (remaining <= 0) {
+      toast.error(`Máximo de ${MAX_FILES} arquivos por despacho`);
+      return;
+    }
+
+    const toAdd = files.slice(0, remaining);
+    const oversized = toAdd.filter((f) => f.size > MAX_FILE_MB * 1024 * 1024);
+    if (oversized.length) {
+      toast.error(`Arquivo(s) excedem ${MAX_FILE_MB}MB: ${oversized.map((f) => f.name).join(", ")}`);
+      return;
+    }
+
+    // Convert to base64
+    Promise.all(
+      toAdd.map(
+        (file) =>
+          new Promise<PendingFile>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+              const base64 = (reader.result as string).split(",")[1];
+              resolve({ file, base64 });
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          })
+      )
+    ).then((results) => {
+      setPendingFiles((prev) => [...prev, ...results]);
+    });
+
+    // Reset input
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const removeFile = (idx: number) => {
+    setPendingFiles((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const formatBytes = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const handleSubmit = () => {
+    create.mutate({ protocolId, nup, action, dispatch, toSectorId });
+  };
+
+  const isPending = create.isPending || uploading;
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setDispatch(""); setPendingFiles([]); } }}>
       <DialogTrigger asChild>
         <Button variant="outline" className="gap-2">
           <ArrowRight className="h-4 w-4" />
           Tramitar
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Registrar Tramitação</DialogTitle>
         </DialogHeader>
+
         <div className="space-y-4 py-2">
+          {/* Ação */}
           <div>
             <Label>Ação</Label>
             <Select value={action} onValueChange={(v) => setAction(v as any)}>
@@ -108,10 +217,15 @@ function TramitationDialog({ protocolId, nup, onDone }: { protocolId: number; nu
               </SelectContent>
             </Select>
           </div>
+
+          {/* Setor destino */}
           {(action === "forward" || action === "assign") && (
             <div>
               <Label>Setor Destino</Label>
-              <Select value={toSectorId?.toString() ?? "none"} onValueChange={(v) => setToSectorId(v && v !== "none" ? Number(v) : undefined)}>
+              <Select
+                value={toSectorId?.toString() ?? "none"}
+                onValueChange={(v) => setToSectorId(v && v !== "none" ? Number(v) : undefined)}
+              >
                 <SelectTrigger className="mt-1"><SelectValue placeholder="Selecionar setor" /></SelectTrigger>
                 <SelectContent>
                   {sectors?.map((s) => (
@@ -121,25 +235,89 @@ function TramitationDialog({ protocolId, nup, onDone }: { protocolId: number; nu
               </Select>
             </div>
           )}
+
+          {/* Despacho — Editor Rich Text */}
           <div>
-            <Label>Despacho / Observação</Label>
-            <Textarea
+            <Label className="mb-1 block">Despacho / Observação</Label>
+            <RichTextEditor
               value={dispatch}
-              onChange={(e) => setDispatch(e.target.value)}
-              placeholder="Descreva a ação realizada..."
-              rows={4}
-              className="mt-1"
+              onChange={setDispatch}
+              placeholder="Descreva a ação realizada, fundamento legal, observações relevantes..."
+              minHeight="160px"
             />
           </div>
+
+          {/* Upload de Documentos */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <Label>Documentos Anexos</Label>
+              <span className="text-xs text-muted-foreground">
+                {pendingFiles.length}/{MAX_FILES} arquivos · máx. {MAX_FILE_MB}MB cada
+              </span>
+            </div>
+
+            {/* Drop zone / button */}
+            <div
+              className={cn(
+                "border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors",
+                pendingFiles.length >= MAX_FILES
+                  ? "border-muted opacity-50 cursor-not-allowed"
+                  : "border-border hover:border-primary/50 hover:bg-primary/5"
+              )}
+              onClick={() => pendingFiles.length < MAX_FILES && fileInputRef.current?.click()}
+            >
+              <Upload className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">
+                Clique para selecionar ou arraste arquivos aqui
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                PDF, Word, imagens, planilhas — até {MAX_FILE_MB}MB por arquivo
+              </p>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.txt,.odt,.ods"
+              className="hidden"
+              onChange={handleFileSelect}
+            />
+
+            {/* Lista de arquivos pendentes */}
+            {pendingFiles.length > 0 && (
+              <div className="mt-3 space-y-2">
+                {pendingFiles.map((pf, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center gap-3 rounded-md border border-border bg-muted/30 px-3 py-2"
+                  >
+                    <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{pf.file.name}</p>
+                      <p className="text-xs text-muted-foreground">{formatBytes(pf.file.size)}</p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                      onClick={() => removeFile(idx)}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-          <Button
-            onClick={() => create.mutate({ protocolId, nup, action, dispatch, toSectorId })}
-            disabled={create.isPending}
-          >
-            {create.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Registrar Tramitação
+
+        <div className="flex justify-end gap-2 pt-2 border-t border-border">
+          <Button variant="outline" onClick={() => setOpen(false)} disabled={isPending}>
+            Cancelar
+          </Button>
+          <Button onClick={handleSubmit} disabled={isPending} className="gap-2">
+            {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+            {uploading ? "Enviando anexos..." : "Registrar Tramitação"}
           </Button>
         </div>
       </DialogContent>
@@ -147,6 +325,7 @@ function TramitationDialog({ protocolId, nup, onDone }: { protocolId: number; nu
   );
 }
 
+// ─── AiAssistDialog ────────────────────────────────────────────────────────────
 function AiAssistDialog({ protocolId, nup, subject, description }: { protocolId: number; nup: string; subject: string; description?: string | null }) {
   const [open, setOpen] = useState(false);
   const [action, setAction] = useState<any>("suggest_response");
@@ -210,6 +389,100 @@ function AiAssistDialog({ protocolId, nup, subject, description }: { protocolId:
   );
 }
 
+// ─── TramitationItem ───────────────────────────────────────────────────────────
+function TramitationItem({ t }: { t: any }) {
+  const [showAttachments, setShowAttachments] = useState(false);
+  const { data: attachments } = trpc.attachments.getByEntity.useQuery(
+    { entityType: "tramitation", entityId: t.tramitation.id },
+    { enabled: showAttachments }
+  );
+
+  const actionColor = ACTION_COLORS[t.tramitation.action] ?? ACTION_COLORS.comment;
+
+  return (
+    <div className="flex gap-3">
+      <div className="flex flex-col items-center">
+        <div className={cn("h-7 w-7 rounded-full border flex items-center justify-center flex-shrink-0", actionColor)}>
+          <ArrowRight className="h-3.5 w-3.5" />
+        </div>
+        <div className="flex-1 w-px bg-border mt-1" />
+      </div>
+      <div className="pb-4 flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-1 flex-wrap">
+          <span className={cn("inline-flex items-center text-xs font-semibold border rounded-full px-2 py-0.5", actionColor)}>
+            {ACTION_LABELS[t.tramitation.action] ?? t.tramitation.action}
+          </span>
+          {t.fromSector && (
+            <span className="text-xs text-muted-foreground">
+              {t.fromSector.name} → {t.toSector?.name ?? "—"}
+            </span>
+          )}
+        </div>
+
+        {/* Despacho — renderizado como HTML */}
+        {t.tramitation.dispatch && (
+          <div
+            className="text-sm text-foreground bg-muted/30 rounded-md p-3 border border-border prose prose-sm dark:prose-invert max-w-none [&_h2]:text-base [&_h2]:font-semibold [&_h3]:text-sm [&_h3]:font-medium [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_blockquote]:border-l-2 [&_blockquote]:border-muted-foreground [&_blockquote]:pl-2 [&_blockquote]:text-muted-foreground [&_blockquote]:italic"
+            dangerouslySetInnerHTML={{ __html: t.tramitation.dispatch }}
+          />
+        )}
+
+        {/* Attachments toggle */}
+        <div className="flex items-center gap-3 mt-2">
+          <div className="flex items-center gap-1.5">
+            <User className="h-3 w-3 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">
+              {t.fromUser?.name ?? "Sistema"} · {new Date(t.tramitation.createdAt).toLocaleString("pt-BR")}
+            </span>
+          </div>
+          <button
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            onClick={() => setShowAttachments((v) => !v)}
+          >
+            <Paperclip className="h-3 w-3" />
+            {showAttachments ? "Ocultar anexos" : "Ver anexos"}
+          </button>
+        </div>
+
+        {/* Attachments list */}
+        {showAttachments && (
+          <div className="mt-2">
+            {!attachments ? (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Carregando...
+              </div>
+            ) : attachments.length === 0 ? (
+              <p className="text-xs text-muted-foreground italic">Nenhum anexo nesta tramitação</p>
+            ) : (
+              <div className="space-y-1.5">
+                {attachments.map((att: any) => (
+                  <a
+                    key={att.id}
+                    href={att.s3Url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 rounded border border-border bg-background px-2.5 py-1.5 text-xs hover:bg-muted/50 transition-colors group"
+                  >
+                    <FileText className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+                    <span className="flex-1 truncate text-foreground">{att.originalName}</span>
+                    <span className="text-muted-foreground flex-shrink-0">
+                      {att.fileSizeBytes < 1024 * 1024
+                        ? `${(att.fileSizeBytes / 1024).toFixed(1)} KB`
+                        : `${(att.fileSizeBytes / (1024 * 1024)).toFixed(1)} MB`}
+                    </span>
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── ProtocolDetail ────────────────────────────────────────────────────────────
 export default function ProtocolDetail({ id, onBack }: Props) {
   const utils = trpc.useUtils();
 
@@ -218,23 +491,19 @@ export default function ProtocolDetail({ id, onBack }: Props) {
 
   if (isLoading) {
     return (
-      <OmniLayout title="Protocolo">
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
-      </OmniLayout>
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
     );
   }
 
   if (!data) {
     return (
-      <OmniLayout title="Protocolo">
-        <div className="flex flex-col items-center justify-center h-64 gap-3">
-          <ClipboardList className="h-10 w-10 text-muted-foreground/30" />
-          <p className="text-muted-foreground">Protocolo não encontrado</p>
-          <Button variant="outline" onClick={onBack}>Voltar</Button>
-        </div>
-      </OmniLayout>
+      <div className="flex flex-col items-center justify-center h-64 gap-3">
+        <ClipboardList className="h-10 w-10 text-muted-foreground/30" />
+        <p className="text-muted-foreground">Protocolo não encontrado</p>
+        <Button variant="outline" onClick={onBack}>Voltar</Button>
+      </div>
     );
   }
 
@@ -242,208 +511,176 @@ export default function ProtocolDetail({ id, onBack }: Props) {
   const status = STATUS_CONFIG[protocol.status] ?? STATUS_CONFIG.open;
 
   return (
-    <OmniLayout>
-      <div className="p-6 space-y-6 max-w-5xl">
-        {/* Header */}
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <Button variant="ghost" size="sm" onClick={onBack} className="gap-1.5 mt-0.5">
-              <ArrowLeft className="h-4 w-4" />
-              Voltar
-            </Button>
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="font-mono text-sm bg-primary/10 text-primary border border-primary/20 rounded px-2 py-0.5 select-all">
-                  {protocol.nup}
+    <div className="p-6 space-y-6 max-w-5xl">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <Button variant="ghost" size="sm" onClick={onBack} className="gap-1.5 mt-0.5">
+            <ArrowLeft className="h-4 w-4" />
+            Voltar
+          </Button>
+          <div>
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
+              <span className="font-mono text-sm bg-primary/10 text-primary border border-primary/20 rounded px-2 py-0.5 select-all">
+                {protocol.nup}
+              </span>
+              <span className={cn("inline-flex items-center text-xs border rounded-full px-2 py-0.5", status.color)}>
+                {status.label}
+              </span>
+              {protocol.isConfidential && (
+                <span className="inline-flex items-center gap-1 text-xs border rounded-full px-2 py-0.5 bg-red-500/10 text-red-400 border-red-500/20">
+                  <Lock className="h-3 w-3" />
+                  Sigiloso
                 </span>
-                <span className={cn("inline-flex items-center text-xs border rounded-full px-2 py-0.5", status.color)}>
-                  {status.label}
-                </span>
-                {protocol.isConfidential && (
-                  <span className="inline-flex items-center gap-1 text-xs border rounded-full px-2 py-0.5 bg-red-500/10 text-red-400 border-red-500/20">
-                    <Lock className="h-3 w-3" />
-                    Sigiloso
-                  </span>
-                )}
-              </div>
-              <h1 className="text-xl font-semibold text-foreground">{protocol.subject}</h1>
+              )}
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <AiAssistDialog
-              protocolId={protocol.id}
-              nup={protocol.nup}
-              subject={protocol.subject}
-              description={protocol.description}
-            />
-            <TramitationDialog
-              protocolId={protocol.id}
-              nup={protocol.nup}
-              onDone={() => {
-                utils.caius.protocols.byId.invalidate({ id });
-                utils.caius.tramitations.byProtocol.invalidate({ protocolId: id });
-              }}
-            />
+            <h1 className="text-xl font-semibold text-foreground">{protocol.subject}</h1>
           </div>
         </div>
-
-        <div className="grid grid-cols-3 gap-6">
-          {/* Main info */}
-          <div className="col-span-2 space-y-4">
-            {protocol.description && (
-              <Card className="bg-card border-border">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Descrição</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-foreground whitespace-pre-wrap">{protocol.description}</p>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Tramitations */}
-            <Card className="bg-card border-border">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                  <ArrowRight className="h-4 w-4" />
-                  Histórico de Tramitações ({tramitations?.length ?? 0})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {!tramitations?.length ? (
-                  <p className="text-sm text-muted-foreground py-4 text-center">Nenhuma tramitação registrada</p>
-                ) : (
-                  <div className="space-y-3">
-                    {tramitations.map((t: any) => (
-                      <div key={t.tramitation.id} className="flex gap-3">
-                        <div className="flex flex-col items-center">
-                          <div className="h-7 w-7 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
-                            <ArrowRight className="h-3.5 w-3.5 text-primary" />
-                          </div>
-                          <div className="flex-1 w-px bg-border mt-1" />
-                        </div>
-                        <div className="pb-4 flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs font-semibold text-foreground">
-                              {ACTION_LABELS[t.tramitation.action] ?? t.tramitation.action}
-                            </span>
-                            {t.fromSector && (
-                              <span className="text-xs text-muted-foreground">
-                                {t.fromSector.name} → {t.toSector?.name ?? "—"}
-                              </span>
-                            )}
-                          </div>
-                          {t.tramitation.dispatch && (
-                            <p className="text-sm text-foreground bg-muted/30 rounded p-2 border border-border">
-                              {t.tramitation.dispatch}
-                            </p>
-                          )}
-                          <div className="flex items-center gap-2 mt-1.5">
-                            <User className="h-3 w-3 text-muted-foreground" />
-                            <span className="text-xs text-muted-foreground">
-                              {t.fromUser?.name ?? "Sistema"} · {new Date(t.tramitation.createdAt).toLocaleString("pt-BR")}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Sidebar info */}
-          <div className="space-y-4">
-            <Card className="bg-card border-border">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Informações</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Tipo</span>
-                  <span className="text-foreground font-medium">{protocol.type}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Canal</span>
-                  <span className="text-foreground font-medium capitalize">{protocol.channel}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Prioridade</span>
-                  <span className="text-foreground font-medium capitalize">{protocol.priority}</span>
-                </div>
-                {sector && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Setor</span>
-                    <span className="text-foreground font-medium">{sector.name}</span>
-                  </div>
-                )}
-                {responsible && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Responsável</span>
-                    <span className="text-foreground font-medium">{responsible.name}</span>
-                  </div>
-                )}
-                {creator && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Criado por</span>
-                    <span className="text-foreground font-medium">{creator.name}</span>
-                  </div>
-                )}
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Abertura</span>
-                  <span className="text-foreground font-medium">
-                    {new Date(protocol.createdAt).toLocaleDateString("pt-BR")}
-                  </span>
-                </div>
-                {protocol.deadline && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Prazo</span>
-                    <span className="text-foreground font-medium">
-                      {new Date(protocol.deadline).toLocaleDateString("pt-BR")}
-                    </span>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Requester */}
-            {(protocol.requesterName || protocol.requesterEmail) && (
-              <Card className="bg-card border-border">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Solicitante</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2 text-sm">
-                  {protocol.requesterName && (
-                    <div>
-                      <span className="text-muted-foreground">Nome</span>
-                      <p className="text-foreground font-medium">{protocol.requesterName}</p>
-                    </div>
-                  )}
-                  {protocol.requesterCpfCnpj && (
-                    <div>
-                      <span className="text-muted-foreground">CPF/CNPJ</span>
-                      <p className="text-foreground font-mono text-xs">{protocol.requesterCpfCnpj}</p>
-                    </div>
-                  )}
-                  {protocol.requesterEmail && (
-                    <div>
-                      <span className="text-muted-foreground">E-mail</span>
-                      <p className="text-foreground text-xs">{protocol.requesterEmail}</p>
-                    </div>
-                  )}
-                  {protocol.requesterPhone && (
-                    <div>
-                      <span className="text-muted-foreground">Telefone</span>
-                      <p className="text-foreground">{protocol.requesterPhone}</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-          </div>
+        <div className="flex items-center gap-2">
+          <AiAssistDialog
+            protocolId={protocol.id}
+            nup={protocol.nup}
+            subject={protocol.subject}
+            description={protocol.description}
+          />
+          <TramitationDialog
+            protocolId={protocol.id}
+            nup={protocol.nup}
+            onDone={() => {
+              utils.caius.protocols.byId.invalidate({ id });
+              utils.caius.tramitations.byProtocol.invalidate({ protocolId: id });
+            }}
+          />
         </div>
       </div>
-    </OmniLayout>
+
+      <div className="grid grid-cols-3 gap-6">
+        {/* Main info */}
+        <div className="col-span-2 space-y-4">
+          {protocol.description && (
+            <Card className="bg-card border-border">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Descrição</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-foreground whitespace-pre-wrap">{protocol.description}</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Tramitations */}
+          <Card className="bg-card border-border">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                <ArrowRight className="h-4 w-4" />
+                Histórico de Tramitações ({tramitations?.length ?? 0})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {!tramitations?.length ? (
+                <p className="text-sm text-muted-foreground py-4 text-center">Nenhuma tramitação registrada</p>
+              ) : (
+                <div className="space-y-1">
+                  {tramitations.map((t: any) => (
+                    <TramitationItem key={t.tramitation.id} t={t} />
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Sidebar info */}
+        <div className="space-y-4">
+          <Card className="bg-card border-border">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Informações</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Tipo</span>
+                <span className="text-foreground font-medium">{protocol.type}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Canal</span>
+                <span className="text-foreground font-medium capitalize">{protocol.channel}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Prioridade</span>
+                <span className="text-foreground font-medium capitalize">{protocol.priority}</span>
+              </div>
+              {sector && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Setor</span>
+                  <span className="text-foreground font-medium">{sector.name}</span>
+                </div>
+              )}
+              {responsible && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Responsável</span>
+                  <span className="text-foreground font-medium">{responsible.name}</span>
+                </div>
+              )}
+              {creator && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Criado por</span>
+                  <span className="text-foreground font-medium">{creator.name}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Abertura</span>
+                <span className="text-foreground font-medium">
+                  {new Date(protocol.createdAt).toLocaleDateString("pt-BR")}
+                </span>
+              </div>
+              {protocol.deadline && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Prazo</span>
+                  <span className="text-foreground font-medium">
+                    {new Date(protocol.deadline).toLocaleDateString("pt-BR")}
+                  </span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Requester */}
+          {(protocol.requesterName || protocol.requesterEmail) && (
+            <Card className="bg-card border-border">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Solicitante</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                {protocol.requesterName && (
+                  <div>
+                    <span className="text-muted-foreground">Nome</span>
+                    <p className="text-foreground font-medium">{protocol.requesterName}</p>
+                  </div>
+                )}
+                {protocol.requesterCpfCnpj && (
+                  <div>
+                    <span className="text-muted-foreground">CPF/CNPJ</span>
+                    <p className="text-foreground font-mono text-xs">{protocol.requesterCpfCnpj}</p>
+                  </div>
+                )}
+                {protocol.requesterEmail && (
+                  <div>
+                    <span className="text-muted-foreground">E-mail</span>
+                    <p className="text-foreground text-xs">{protocol.requesterEmail}</p>
+                  </div>
+                )}
+                {protocol.requesterPhone && (
+                  <div>
+                    <span className="text-muted-foreground">Telefone</span>
+                    <p className="text-foreground">{protocol.requesterPhone}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

@@ -255,7 +255,7 @@ export const caiusRouter = router({
       .mutation(async ({ ctx, input }) => {
         // Get current protocol to know fromSector
         const proto = await getProtocolById(input.protocolId);
-        await createTramitation({
+        const tramResult = await createTramitation({
           protocolId: input.protocolId,
           nup: input.nup,
           fromSectorId: proto?.protocol.responsibleSectorId ?? undefined,
@@ -289,7 +289,7 @@ export const caiusRouter = router({
           entityId: input.protocolId,
           details: { dispatch: input.dispatch, toSectorId: input.toSectorId },
         });
-        return { success: true };
+        return { success: true, tramitationId: tramResult.tramitationId };
       }),
   }),
 

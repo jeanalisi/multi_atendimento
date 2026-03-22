@@ -219,7 +219,8 @@ export async function getTramitationsByProtocol(protocolId: number) {
 export async function createTramitation(data: InsertTramitation) {
   const db = await getDb();
   if (!db) throw new Error("DB unavailable");
-  await db.insert(tramitations).values(data);
+  const result = await db.insert(tramitations).values(data);
+  return { tramitationId: Number(result[0].insertId) };
 }
 
 // ─── Official Documents ───────────────────────────────────────────────────────

@@ -454,3 +454,26 @@
 - [x] Preview em tempo real da barra institucional com os dados configurados
 - [x] Barra superior, canais de atendimento e rodapé da Central do Cidadão usam dados dinâmicos
 - [x] 73 testes passando, TypeScript 0 erros
+
+## Fase 26: Despacho de Tramitação — Anexos e Editor Avançado [CONCLUÍDO]
+
+### Backend
+- [x] Reutiliza attachments.upload e attachments.getByEntity com entityType="tramitation"
+- [x] createTramitation retorna tramitationId para vinculação de anexos
+- [x] Procedure create de tramitações retorna { success, tramitationId }
+
+### Frontend — Modal de Despacho
+- [x] TipTap instalado (@tiptap/react, starter-kit, underline, link, text-align, placeholder)
+- [x] Componente RichTextEditor criado com toolbar completa (negrito, itálico, sublinhado, títulos, listas, citação, alinhamento, link, desfazer/refazer)
+- [x] Modal de despacho usa RichTextEditor em vez de Textarea
+- [x] Upload de documentos com drop zone (PDF, Word, imagens, planilhas, até 20MB)
+- [x] Lista de arquivos pendentes com nome, tamanho e botão remover
+- [x] Validação: máximo 5 arquivos, 20MB por arquivo
+- [x] Upload dos anexos após criação da tramitação usando tramitationId
+
+### Frontend — Visualização
+- [x] TramitationItem exibe despacho como HTML renderizado (dangerouslySetInnerHTML)
+- [x] Botão "Ver anexos" carrega e exibe lista de arquivos por tramitação
+- [x] Anexos são links diretos para S3 (abre em nova aba)
+- [x] Consulta Pública também renderiza despacho como HTML
+- [x] 73 testes passando, TypeScript 0 erros

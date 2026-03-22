@@ -137,9 +137,10 @@ function TramitationTimeline({ nup }: { nup: string }) {
                 </div>
               )}
               {t.dispatch && (
-                <p className="mt-1.5 text-xs text-gray-600 bg-gray-50 border border-gray-100 rounded p-2 leading-relaxed">
-                  {t.dispatch}
-                </p>
+                <div
+                  className="mt-1.5 text-xs text-gray-600 bg-gray-50 border border-gray-100 rounded p-2 leading-relaxed prose prose-xs max-w-none [&_h2]:text-sm [&_h2]:font-semibold [&_h3]:text-xs [&_h3]:font-medium [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_blockquote]:border-l-2 [&_blockquote]:border-gray-300 [&_blockquote]:pl-2 [&_blockquote]:italic"
+                  dangerouslySetInnerHTML={{ __html: t.dispatch }}
+                />
               )}
             </div>
           </div>
