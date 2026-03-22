@@ -19,6 +19,7 @@ import {
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import DocumentEditor from "@/components/DocumentEditor";
+import { ProtocolPrintButton } from "@/components/ProtocolPrintView";
 import {
   ArrowLeft,
   ArrowRight,
@@ -538,6 +539,10 @@ export default function ProtocolDetail({ id, onBack }: Props) {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <ProtocolPrintButton
+            protocolData={data as any}
+            tramitations={(tramitations ?? []) as any}
+          />
           <AiAssistDialog
             protocolId={protocol.id}
             nup={protocol.nup}

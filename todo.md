@@ -614,3 +614,17 @@
 
 ### Testes
 - [x] 73 testes passando, TypeScript 0 erros
+
+## Fase 32: Assinaturas Digitais, Chancela e Exportação PDF
+
+### Assinaturas Digitais e Verificação de Autenticidade
+- [x] Rota /document-signatures e item de menu "Assinaturas Digitais" no grupo Gestão Pública
+- [x] Rota /assinaturas/:entityType/:entityId para acesso direto por entidade
+- [x] Botão "Chancela" na lista de Documentos Oficiais (Documents.tsx)
+- [x] Componente ProtocolPrintButton com layout institucional completo (NUP, dados, tramitações, assinaturas, chancela, QR Code dinâmico via CDN)
+- [x] Botão "Exportar PDF" no cabeçalho da página ProtocolDetail
+- [x] Aba "Verificar Documento" na Central do Cidadão (busca por chave, exibe dados, assinaturas)
+- [x] Página pública /verificar/:key com resultado completo de autenticação
+
+### Testes
+- [x] 73 testes passando, TypeScript 0 erros

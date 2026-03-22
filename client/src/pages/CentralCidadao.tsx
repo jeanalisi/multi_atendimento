@@ -67,7 +67,13 @@ export default function CentralCidadao() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedService, setSelectedService] = useState<any>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"services" | "profiles" | "organs" | "help" | "ouvidoria" | "acompanhar">("services");
+  const [activeTab, setActiveTab] = useState<"services" | "profiles" | "organs" | "help" | "ouvidoria" | "acompanhar" | "verificar">("services");
+  const [verifyKey, setVerifyKey] = useState("");
+  const [activeVerifyKey, setActiveVerifyKey] = useState<string | null>(null);
+  const { data: verifyResult, isLoading: verifyLoading } = trpc.verification.verify.useQuery(
+    { key: activeVerifyKey! },
+    { enabled: !!activeVerifyKey, retry: false }
+  );
   const [ouvidoriaStep, setOuvidoriaStep] = useState<"form" | "success">("form");
   const [ouvidoriaNup, setOuvidoriaNup] = useState("");
   const [trackNup, setTrackNup] = useState("");
@@ -154,6 +160,7 @@ export default function CentralCidadao() {
                 { key: "organs", label: "Órgãos" },
                 { key: "ouvidoria", label: "Ouvidoria" },
                 { key: "acompanhar", label: "Acompanhar" },
+                { key: "verificar", label: "Verificar Documento" },
                 { key: "help", label: "Ajuda" },
               ].map((tab) => (
                 <button
@@ -203,6 +210,7 @@ export default function CentralCidadao() {
                 { key: "organs", label: "Órgãos" },
                 { key: "ouvidoria", label: "Ouvidoria" },
                 { key: "acompanhar", label: "Acompanhar" },
+                { key: "verificar", label: "Verificar Documento" },
                 { key: "help", label: "Ajuda" },
               ].map((tab) => (
                 <button
@@ -668,12 +676,116 @@ export default function CentralCidadao() {
               )}
             </div>
           </section>
+            )}
+        {/* VERIFICAR DOCUMENTO */}
+        {activeTab === "verificar" && (
+          <section className="max-w-2xl mx-auto px-4 py-10">
+            <div className="mb-8">
+              <h2 className="text-2xl font-bold text-gray-900 mb-2 flex items-center gap-2">
+                <Shield className="w-6 h-6 text-blue-700" />
+                Verificar Autenticidade de Documento
+              </h2>
+              <p className="text-gray-500 text-sm">Digite a chave de verificação impressa no documento ou escaneie o QR Code.</p>
+            </div>
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-6">
+              <div className="flex gap-3">
+                <input
+                  value={verifyKey}
+                  onChange={e => setVerifyKey(e.target.value.toUpperCase())}
+                  onKeyDown={e => e.key === "Enter" && setActiveVerifyKey(verifyKey.trim())}
+                  placeholder="Ex: PMI-2026-000001-ABCD1234"
+                  className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400"
+                />
+                <button
+                  disabled={!verifyKey || verifyLoading}
+                  onClick={() => setActiveVerifyKey(verifyKey.trim())}
+                  className="px-5 py-2 bg-blue-700 text-white rounded-lg text-sm font-medium hover:bg-blue-800 transition-colors disabled:opacity-50"
+                >
+                  {verifyLoading ? "Verificando..." : "Verificar"}
+                </button>
+              </div>
+              {verifyLoading && (
+                <div className="text-center py-6">
+                  <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-3" />
+                  <p className="text-gray-500 text-sm">Verificando autenticidade...</p>
+                </div>
+              )}
+              {!verifyLoading && activeVerifyKey && verifyResult && (
+                <div className={cn(
+                  "rounded-xl border-2 overflow-hidden",
+                  verifyResult.found && verifyResult.document?.status === "authentic" ? "border-green-200" : "border-red-200"
+                )}>
+                  <div className={cn(
+                    "px-5 py-3 flex items-center gap-2 text-white font-bold",
+                    verifyResult.found && verifyResult.document?.status === "authentic" ? "bg-green-600" : "bg-red-600"
+                  )}>
+                    {verifyResult.found && verifyResult.document?.status === "authentic"
+                      ? <><CheckCircle2 className="w-5 h-5" /> Documento Autêntico e Válido</>
+                      : <><Info className="w-5 h-5" /> {verifyResult.found ? "Documento Inválido ou Cancelado" : "Documento Não Encontrado"}</>
+                    }
+                  </div>
+                  <div className="p-5 space-y-4">
+                    {verifyResult.found && verifyResult.document ? (
+                      <>
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          {verifyResult.document.nup && (
+                            <div><p className="text-xs text-gray-500">NUP</p><p className="font-mono font-bold">{verifyResult.document.nup}</p></div>
+                          )}
+                          <div><p className="text-xs text-gray-500">Documento</p><p className="font-medium">{verifyResult.document.title}</p></div>
+                          {verifyResult.document.documentNumber && (
+                            <div><p className="text-xs text-gray-500">Número</p><p className="font-mono">{verifyResult.document.documentNumber}</p></div>
+                          )}
+                          {verifyResult.document.issuingUnit && (
+                            <div><p className="text-xs text-gray-500">Unidade Emissora</p><p>{verifyResult.document.issuingUnit}</p></div>
+                          )}
+                          {verifyResult.document.issuedAt && (
+                            <div><p className="text-xs text-gray-500">Emitido em</p><p>{new Date(verifyResult.document.issuedAt as string | number | Date).toLocaleDateString("pt-BR")}</p></div>
+                          )}
+                          {verifyResult.document.issuingUserName && (
+                            <div><p className="text-xs text-gray-500">Emitido por</p><p>{verifyResult.document.issuingUserName}</p></div>
+                          )}
+                        </div>
+                        {verifyResult.signatures && verifyResult.signatures.length > 0 && (
+                          <div className="border-t pt-4">
+                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Assinaturas Eletrônicas ({verifyResult.signatures.length})</p>
+                            <div className="space-y-2">
+                              {verifyResult.signatures.map((sig: any) => (
+                                <div key={sig.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+                                  <div>
+                                    <p className="text-sm font-medium">{sig.signerName}</p>
+                                    {sig.signerRole && <p className="text-xs text-gray-500">{sig.signerRole}</p>}
+                                  </div>
+                                  <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium", sig.status === "valid" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700")}>
+                                    {sig.status === "valid" ? "Válida" : "Inválida"}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="text-center py-4">
+                        <p className="text-sm text-gray-500">Nenhum documento encontrado com a chave <code className="font-mono bg-gray-100 px-1 rounded">{activeVerifyKey}</code>.</p>
+                        <p className="text-xs text-gray-400 mt-1">Verifique se a chave foi digitada corretamente.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              <div className="bg-blue-50 rounded-xl border border-blue-200 p-4 flex gap-3">
+                <Shield className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-blue-900">Sobre a verificação</p>
+                  <p className="text-xs text-blue-700 mt-0.5">Cada documento emitido pelo sistema recebe uma chave única e um QR Code. Digite a chave ou escaneie o QR Code para confirmar a autenticidade. Em caso de dúvidas, entre em contato com a unidade emissora.</p>
+                </div>
+              </div>
+            </div>
+          </section>
         )}
-
       </main>
-
       {/* ═══════════════════════════════════════════════════════════════════════
-          RODAPÉ INSTITUCIONAL
+          RODÉ INSTITUCIONAL
       ═══════════════════════════════════════════════════════════════════════ */}
       <footer className="bg-gray-900 text-gray-300 mt-auto">
         <div className="max-w-7xl mx-auto px-4 py-10">
