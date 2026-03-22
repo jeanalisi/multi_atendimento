@@ -469,144 +469,225 @@ export const verificationRouter = router({
       }
       console.log("[downloadSignedPdf] originalPdfBytes:", originalPdfBytes ? originalPdfBytes.byteLength + " bytes" : "null");
 
-      // Criar o PDF da página de assinatura
+      // ─── Gerar página(s) de chancela com controle de overflow ───────────────────
+      const FOOTER_RESERVED = 80; // espaço reservado para rodapé na última página
+      const PAGE_W = 595.28;
+      const PAGE_H = 841.89;
+      const MARGIN = 50;
+      const CONTENT_W = PAGE_W - 2 * MARGIN;
+
       const signaturePdf = await PDFDocument.create();
-      const page = signaturePdf.addPage([595.28, 841.89]); // A4
-      const { width, height } = page.getSize();
       const fontBold = await signaturePdf.embedFont(StandardFonts.HelveticaBold);
       const fontRegular = await signaturePdf.embedFont(StandardFonts.Helvetica);
       const fontMono = await signaturePdf.embedFont(StandardFonts.Courier);
 
-      const margin = 50;
       const blue = rgb(0.1, 0.22, 0.42);
       const lightBlue = rgb(0.93, 0.96, 1.0);
       const gray = rgb(0.45, 0.45, 0.45);
       const darkGray = rgb(0.2, 0.2, 0.2);
       const green = rgb(0.13, 0.55, 0.13);
+      const white = rgb(1, 1, 1);
 
-      let y = height - margin;
+      // Helper: adicionar nova página e resetar y
+      let currentPage = signaturePdf.addPage([PAGE_W, PAGE_H]);
+      let y = PAGE_H - MARGIN;
 
-      // ── Cabeçalho ──
-      // Fundo azul no topo
-      page.drawRectangle({ x: 0, y: height - 80, width, height: 80, color: blue });
-      page.drawText("CHANCELA DE AUTENTICIDADE", {
-        x: margin, y: height - 35,
-        size: 14, font: fontBold, color: rgb(1, 1, 1),
-      });
-      page.drawText("Documento Assinado Eletronicamente", {
-        x: margin, y: height - 55,
-        size: 9, font: fontRegular, color: rgb(0.8, 0.88, 1.0),
-      });
-      // Logo/órgão à direita
-      const orgText = doc.issuingUnit ?? "CAIUS — Plataforma Institucional";
-      const orgTextWidth = fontRegular.widthOfTextAtSize(orgText, 8);
-      page.drawText(orgText, {
-        x: width - margin - orgTextWidth, y: height - 45,
-        size: 8, font: fontRegular, color: rgb(0.8, 0.88, 1.0),
-      });
-
-      y = height - 100;
-
-      // ── Título do documento ──
-      page.drawText("DOCUMENTO", { x: margin, y, size: 7, font: fontBold, color: gray });
-      y -= 14;
-      page.drawText(doc.title, { x: margin, y, size: 12, font: fontBold, color: darkGray, maxWidth: width - 2 * margin });
-      y -= 20;
-
-      // Linha separadora
-      page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 0.5, color: rgb(0.8, 0.8, 0.8) });
-      y -= 16;
-
-      // ── Dados do documento ──
-      const drawField = (label: string, value: string, x: number, yPos: number, colWidth = 240) => {
-        page.drawText(label.toUpperCase(), { x, y: yPos, size: 6.5, font: fontBold, color: gray });
-        page.drawText(value || "—", { x, y: yPos - 11, size: 9, font: fontRegular, color: darkGray, maxWidth: colWidth });
-        return yPos - 26;
+      const newPage = () => {
+        currentPage = signaturePdf.addPage([PAGE_W, PAGE_H]);
+        y = PAGE_H - MARGIN;
       };
 
-      const col1 = margin;
-      const col2 = margin + 260;
+      // Helper: garantir espaço mínimo (cria nova página se necessário)
+      const ensureSpace = (needed: number) => {
+        if (y - needed < FOOTER_RESERVED) newPage();
+      };
 
-      // Linha 1
-      drawField("Tipo de Documento", doc.documentType, col1, y);
-      drawField("Unidade Emissora", doc.issuingUnit ?? "—", col2, y);
-      y -= 30;
+      // Helper: quebrar texto em linhas que cabem na largura
+      const wrapText = (text: string, font: typeof fontRegular, size: number, maxW: number): string[] => {
+        const words = text.split(" ");
+        const lines: string[] = [];
+        let line = "";
+        for (const word of words) {
+          const test = line ? `${line} ${word}` : word;
+          if (font.widthOfTextAtSize(test, size) <= maxW) {
+            line = test;
+          } else {
+            if (line) lines.push(line);
+            line = word;
+          }
+        }
+        if (line) lines.push(line);
+        return lines.length ? lines : [""];
+      };
 
-      // Linha 2
-      drawField("NUP", doc.nup ?? "—", col1, y);
-      drawField("Número do Documento", doc.documentNumber ?? "—", col2, y);
-      y -= 30;
+      // ── Cabeçalho (fundo azul) ──
+      currentPage.drawRectangle({ x: 0, y: PAGE_H - 80, width: PAGE_W, height: 80, color: blue });
+      currentPage.drawText("CHANCELA DE AUTENTICIDADE", {
+        x: MARGIN, y: PAGE_H - 32, size: 14, font: fontBold, color: white,
+      });
+      currentPage.drawText("Documento Assinado Eletronicamente — CAIUS", {
+        x: MARGIN, y: PAGE_H - 50, size: 9, font: fontRegular, color: rgb(0.8, 0.88, 1.0),
+      });
+      const orgText = doc.issuingUnit ?? "CAIUS — Plataforma Institucional";
+      const orgLines = wrapText(orgText, fontRegular, 7.5, 180);
+      orgLines.forEach((line, i) => {
+        const lw = fontRegular.widthOfTextAtSize(line, 7.5);
+        currentPage.drawText(line, {
+          x: PAGE_W - MARGIN - lw, y: PAGE_H - 38 - i * 12, size: 7.5, font: fontRegular, color: rgb(0.8, 0.88, 1.0),
+        });
+      });
 
-      // Linha 3
+      y = PAGE_H - 96;
+
+      // ── Título do documento ──
+      ensureSpace(50);
+      currentPage.drawText("DOCUMENTO", { x: MARGIN, y, size: 7, font: fontBold, color: gray });
+      y -= 14;
+      // Quebrar título longo em múltiplas linhas
+      const titleLines = wrapText(doc.title, fontBold, 12, CONTENT_W);
+      for (const tl of titleLines) {
+        ensureSpace(18);
+        currentPage.drawText(tl, { x: MARGIN, y, size: 12, font: fontBold, color: darkGray });
+        y -= 16;
+      }
+      y -= 6;
+
+      // Linha separadora
+      ensureSpace(20);
+      currentPage.drawLine({ start: { x: MARGIN, y }, end: { x: PAGE_W - MARGIN, y }, thickness: 0.5, color: rgb(0.8, 0.8, 0.8) });
+      y -= 16;
+
+      // ── Dados do documento (2 colunas) ──
+      const col1 = MARGIN;
+      const col2 = MARGIN + 260;
+      const colW = 230;
+
+      const drawField2 = (label: string, value: string, x: number, colWidth = colW) => {
+        ensureSpace(32);
+        currentPage.drawText(label.toUpperCase(), { x, y, size: 6.5, font: fontBold, color: gray });
+        y -= 12;
+        const valLines = wrapText(value || "—", fontRegular, 9, colWidth);
+        for (const vl of valLines) {
+          ensureSpace(14);
+          currentPage.drawText(vl, { x, y, size: 9, font: fontRegular, color: darkGray });
+          y -= 12;
+        }
+      };
+
+      // Linha 1: Tipo + Unidade
+      const savedY1 = y;
+      drawField2("Tipo de Documento", doc.documentType, col1);
+      const afterCol1_1 = y;
+      y = savedY1;
+      drawField2("Unidade Emissora", doc.issuingUnit ?? "—", col2);
+      y = Math.min(afterCol1_1, y) - 6;
+
+      // Linha 2: NUP + Número
+      const savedY2 = y;
+      drawField2("NUP", doc.nup ?? "—", col1);
+      const afterCol1_2 = y;
+      y = savedY2;
+      drawField2("Número do Documento", doc.documentNumber ?? "—", col2);
+      y = Math.min(afterCol1_2, y) - 6;
+
+      // Linha 3: Data + Status
       const issuedAtStr = doc.issuedAt
         ? new Date(doc.issuedAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })
         : "—";
-      drawField("Data de Emissão", issuedAtStr, col1, y);
-      drawField("Status", doc.status === "authentic" ? "Autêntico" : doc.status, col2, y);
-      y -= 30;
+      const savedY3 = y;
+      drawField2("Data de Emissão", issuedAtStr, col1);
+      const afterCol1_3 = y;
+      y = savedY3;
+      const statusLabel = doc.status === "authentic" ? "✅ Autêntico" : doc.status;
+      drawField2("Status", statusLabel, col2);
+      y = Math.min(afterCol1_3, y) - 10;
 
       // ── Chave de verificação ──
-      page.drawRectangle({ x: margin, y: y - 4, width: width - 2 * margin, height: 28, color: lightBlue });
-      page.drawText("CHAVE DE VERIFICAÇÃO", { x: margin + 8, y: y + 14, size: 6.5, font: fontBold, color: blue });
-      page.drawText(doc.verificationKey, { x: margin + 8, y: y + 2, size: 10, font: fontMono, color: blue });
-      y -= 38;
+      ensureSpace(40);
+      currentPage.drawRectangle({ x: MARGIN, y: y - 6, width: CONTENT_W, height: 32, color: lightBlue });
+      currentPage.drawText("CHAVE DE VERIFICAÇÃO", { x: MARGIN + 8, y: y + 16, size: 6.5, font: fontBold, color: blue });
+      currentPage.drawText(doc.verificationKey, { x: MARGIN + 8, y: y + 4, size: 10, font: fontMono, color: blue });
+      y -= 44;
 
-      // Link de verificação
+      // ── Link de verificação ──
       const verifyUrl = doc.verificationUrl ?? `${input.origin ?? "https://multichat-ve5tpunf.manus.space"}/verificar/${doc.verificationKey}`;
-      page.drawText("LINK DE VERIFICAÇÃO", { x: margin, y, size: 6.5, font: fontBold, color: gray });
-      y -= 11;
-      page.drawText(verifyUrl, { x: margin, y, size: 8, font: fontMono, color: blue, maxWidth: width - 2 * margin - 100 });
-      y -= 24;
+      ensureSpace(30);
+      currentPage.drawText("LINK DE VERIFICAÇÃO", { x: MARGIN, y, size: 6.5, font: fontBold, color: gray });
+      y -= 12;
+      const linkLines = wrapText(verifyUrl, fontMono, 8, CONTENT_W - 10);
+      for (const ll of linkLines) {
+        ensureSpace(14);
+        currentPage.drawText(ll, { x: MARGIN, y, size: 8, font: fontMono, color: blue });
+        y -= 12;
+      }
+      y -= 12;
 
       // Linha separadora
-      page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 0.5, color: rgb(0.8, 0.8, 0.8) });
+      ensureSpace(20);
+      currentPage.drawLine({ start: { x: MARGIN, y }, end: { x: PAGE_W - MARGIN, y }, thickness: 0.5, color: rgb(0.8, 0.8, 0.8) });
       y -= 16;
 
       // ── Assinaturas ──
       if (sigs.length > 0) {
-        page.drawText("ASSINATURAS ELETRÔNICAS", { x: margin, y, size: 8, font: fontBold, color: blue });
+        ensureSpace(24);
+        currentPage.drawText("ASSINATURAS ELETRÔNICAS", { x: MARGIN, y, size: 8, font: fontBold, color: blue });
         y -= 16;
 
         for (const sig of sigs) {
-          // Fundo cinza claro para cada assinatura
-          const sigBlockHeight = 58;
-          page.drawRectangle({ x: margin, y: y - sigBlockHeight + 12, width: width - 2 * margin, height: sigBlockHeight, color: rgb(0.97, 0.97, 0.97) });
-          page.drawRectangle({ x: margin, y: y - sigBlockHeight + 12, width: 3, height: sigBlockHeight, color: green });
+          // Calcular altura do bloco de assinatura
+          const hasRoleUnit = !!(sig.signerRole || sig.signerUnit);
+          const hasCpf = !!sig.signerCpfMasked;
+          const hasCode = !!sig.accessCode;
+          const blockH = 16 + (hasRoleUnit ? 14 : 0) + 12 + 12 + (hasCode ? 12 : 0) + 8;
 
-          const sigX = margin + 10;
-          page.drawText(`${sig.signatureOrder}. ${sig.signerName}`, { x: sigX, y: y, size: 10, font: fontBold, color: darkGray });
-          y -= 13;
-          const roleUnit = [sig.signerRole, sig.signerUnit].filter(Boolean).join(" — ");
-          if (roleUnit) {
-            page.drawText(roleUnit, { x: sigX, y, size: 8, font: fontRegular, color: gray });
-            y -= 12;
+          ensureSpace(blockH + 10);
+
+          const blockTop = y + 4;
+          currentPage.drawRectangle({ x: MARGIN, y: y - blockH + 8, width: CONTENT_W, height: blockH, color: rgb(0.97, 0.97, 0.97) });
+          currentPage.drawRectangle({ x: MARGIN, y: y - blockH + 8, width: 3, height: blockH, color: green });
+
+          const sigX = MARGIN + 10;
+          currentPage.drawText(`${sig.signatureOrder}. ${sig.signerName}`, { x: sigX, y, size: 10, font: fontBold, color: darkGray });
+          y -= 14;
+
+          if (hasRoleUnit) {
+            const roleUnit = [sig.signerRole, sig.signerUnit].filter(Boolean).join(" — ");
+            const ruLines = wrapText(roleUnit, fontRegular, 8, CONTENT_W - 20);
+            for (const rl of ruLines) {
+              currentPage.drawText(rl, { x: sigX, y, size: 8, font: fontRegular, color: gray });
+              y -= 12;
+            }
           }
+
           const sigDate = sig.signedAt ? new Date(sig.signedAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "—";
-          page.drawText(`Assinado em: ${sigDate}`, { x: sigX, y, size: 7.5, font: fontRegular, color: gray });
-          y -= 11;
+          currentPage.drawText(`Assinado em: ${sigDate}`, { x: sigX, y, size: 7.5, font: fontRegular, color: gray });
+          y -= 12;
+
           const typeLabel = sig.signatureType === "institutional" ? "Assinatura Institucional"
             : sig.signatureType === "advanced" ? "Assinatura Avançada"
             : "Assinatura Qualificada ICP-Brasil";
-          page.drawText(`Tipo: ${typeLabel}`, { x: sigX, y, size: 7.5, font: fontRegular, color: gray });
-          if (sig.signerCpfMasked) {
-            page.drawText(`  |  CPF: ${sig.signerCpfMasked}`, { x: sigX + 120, y, size: 7.5, font: fontRegular, color: gray });
+          const cpfPart = hasCpf ? `   |   CPF: ${sig.signerCpfMasked}` : "";
+          currentPage.drawText(`Tipo: ${typeLabel}${cpfPart}`, { x: sigX, y, size: 7.5, font: fontRegular, color: gray, maxWidth: CONTENT_W - 20 });
+          y -= 12;
+
+          if (hasCode) {
+            currentPage.drawText(`Código de Acesso: ${sig.accessCode}`, { x: sigX, y, size: 7, font: fontMono, color: blue });
+            y -= 12;
           }
-          y -= 11;
-          if (sig.accessCode) {
-            page.drawText(`Código: ${sig.accessCode}`, { x: sigX, y, size: 7, font: fontMono, color: blue });
-          }
-          y -= 18;
+
+          y -= 10; // espaço entre assinaturas
         }
       }
 
-      // ── Rodapé institucional ──
-      const footerY = 40;
-      page.drawLine({ start: { x: margin, y: footerY + 20 }, end: { x: width - margin, y: footerY + 20 }, thickness: 0.5, color: rgb(0.8, 0.8, 0.8) });
-      page.drawText("Este documento foi assinado eletronicamente conforme a Lei nº 14.063/2020 e tem validade jurídica.", {
-        x: margin, y: footerY + 8, size: 7, font: fontRegular, color: gray, maxWidth: width - 2 * margin,
+      // ── Rodapé institucional (fixo na última página de chancela) ──
+      const footerY = 30;
+      currentPage.drawLine({ start: { x: MARGIN, y: footerY + 28 }, end: { x: PAGE_W - MARGIN, y: footerY + 28 }, thickness: 0.5, color: rgb(0.8, 0.8, 0.8) });
+      currentPage.drawText("Este documento foi assinado eletronicamente conforme a Lei nº 14.063/2020 e tem validade jurídica.", {
+        x: MARGIN, y: footerY + 16, size: 7, font: fontRegular, color: gray, maxWidth: CONTENT_W,
       });
-      page.drawText("Autenticidade verificável em: " + verifyUrl, {
-        x: margin, y: footerY - 4, size: 6.5, font: fontMono, color: blue, maxWidth: width - 2 * margin,
+      const footerLinkLines = wrapText("Autenticidade verificável em: " + verifyUrl, fontMono, 6.5, CONTENT_W);
+      footerLinkLines.forEach((fl, i) => {
+        currentPage.drawText(fl, { x: MARGIN, y: footerY + 4 - i * 10, size: 6.5, font: fontMono, color: blue });
       });
 
       // ── Merge com o PDF original ──
@@ -623,18 +704,56 @@ export const verificationRouter = router({
             throw new Error("Invalid PDF header");
           }
 
-          // Merge: original + página de assinatura
+          // Carregar PDF original e inserir rodapé de referência em cada página
           const originalDoc = await PDFDocument.load(originalPdfBytes, { ignoreEncryption: true });
+          const refFontBold = await originalDoc.embedFont(StandardFonts.HelveticaBold);
+          const refFontReg = await originalDoc.embedFont(StandardFonts.Helvetica);
+          const refBlue = rgb(0.1, 0.22, 0.42);
+          const refGray = rgb(0.5, 0.5, 0.5);
+
+          const nupShort = doc.nup ?? doc.verificationKey;
+          const refText1 = `Documento assinado eletronicamente no CAIUS  |  NUP: ${nupShort}`;
+          const refText2 = `Chave: ${doc.verificationKey}  |  Verificar autenticidade na última página ou em: ${verifyUrl}`;
+
+          const pages = originalDoc.getPages();
+          for (const pg of pages) {
+            const { width: pgW, height: pgH } = pg.getSize();
+            const refMargin = 30;
+            const refY = 18;
+
+            // Linha separadora acima do rodapé
+            pg.drawLine({
+              start: { x: refMargin, y: refY + 22 },
+              end: { x: pgW - refMargin, y: refY + 22 },
+              thickness: 0.4,
+              color: refGray,
+            });
+
+            // Linha 1: CAIUS + NUP
+            pg.drawText(refText1, {
+              x: refMargin, y: refY + 10,
+              size: 6.5, font: refFontBold, color: refBlue,
+              maxWidth: pgW - 2 * refMargin,
+            });
+
+            // Linha 2: Chave + link
+            pg.drawText(refText2, {
+              x: refMargin, y: refY - 1,
+              size: 5.5, font: refFontReg, color: refGray,
+              maxWidth: pgW - 2 * refMargin,
+            });
+          }
+
+          // Merge: original (com rodapés) + página(s) de assinatura
           const mergedDoc = await PDFDocument.create();
-          // Copiar todas as páginas do original
           const originalPages = await mergedDoc.copyPages(originalDoc, originalDoc.getPageIndices());
           for (const p of originalPages) mergedDoc.addPage(p);
-          // Copiar a página de assinatura
+          // Copiar todas as páginas da chancela
           const signatureDoc = await PDFDocument.load(signatureBytes);
-          const [sigPage] = await mergedDoc.copyPages(signatureDoc, [0]);
-          mergedDoc.addPage(sigPage);
+          const sigPages = await mergedDoc.copyPages(signatureDoc, signatureDoc.getPageIndices());
+          for (const sp of sigPages) mergedDoc.addPage(sp);
           finalPdfBytes = await mergedDoc.save();
-          console.log("[downloadSignedPdf] Merge bem-sucedido. Páginas:", originalDoc.getPageCount() + 1);
+          console.log("[downloadSignedPdf] Merge bem-sucedido. Páginas originais:", originalDoc.getPageCount(), "+ chancela:", signatureDoc.getPageCount());
         } catch (mergeErr) {
           console.error("[downloadSignedPdf] Erro no merge:", mergeErr);
           // Se o merge falhar, retornar apenas a página de assinatura

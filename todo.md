@@ -694,3 +694,10 @@
 - [x] Criação automática de protocolo para conversa externa
 - [x] Envio automático de resposta com NUP ao usuário
 - [x] Logo dinâmica no sidebar e tela de login (VITE_APP_LOGO / VITE_APP_TITLE)
+
+## Especificação 43: Correção da Chancela e Referência de Assinatura no PDF Original
+- [x] Corrigir layout da página de chancela: sem sobreposição, sem corte, todos os campos visíveis
+- [x] Layout A4 fixo para chancela: controle de overflow com nova página automática, wrapText, múltiplos signatários
+- [x] Inserir rodapé de referência discreta em todas as páginas do PDF original (upload)
+- [x] Rodapé: "Documento assinado no CAIUS | NUP: XXXXX | Verificação na página final ou portal"
+- [x] PDF consolidado final: original com rodapés + página(s) de chancela completa
