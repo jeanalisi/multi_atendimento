@@ -406,33 +406,68 @@ export const verificationRouter = router({
       let originalPdfBytes: Uint8Array | null = null;
       try {
         let pdfUrl = input.originalPdfUrl;
+
+        // 1. Se passou s3Key diretamente, buscar URL presigned
         if (!pdfUrl && input.originalPdfS3Key) {
           const { url } = await storageGet(input.originalPdfS3Key);
           pdfUrl = url;
         }
-        if (!pdfUrl && doc.entityType === "custom") {
-          // Buscar attachment pelo entityId
+
+        // 2. Para entityType "custom": o entityId É o ID do attachment (PDF externo)
+        if (!pdfUrl && doc.entityType === "custom" && doc.entityId > 0) {
           const att = await db.select().from(attachments)
-            .where(and(
-              eq(attachments.entityId, doc.entityId),
-              eq(attachments.entityType, "external_pdf"),
-            ))
-            .orderBy(desc(attachments.createdAt))
+            .where(eq(attachments.id, doc.entityId))
             .limit(1);
-          if (att.length > 0) {
+          if (att.length > 0 && att[0].s3Url) {
+            // Usar s3Url diretamente (URL pública do S3)
+            pdfUrl = att[0].s3Url;
+          } else if (att.length > 0 && att[0].s3Key) {
+            // Fallback: gerar URL presigned
             const { url } = await storageGet(att[0].s3Key);
             pdfUrl = url;
           }
         }
-        if (pdfUrl) {
-          const res = await fetch(pdfUrl);
-          if (res.ok) {
-            originalPdfBytes = new Uint8Array(await res.arrayBuffer());
+
+        // 3. Para outros entityTypes: buscar attachment pelo entityType+entityId
+        if (!pdfUrl && doc.entityType !== "custom") {
+          const att = await db.select().from(attachments)
+            .where(and(
+              eq(attachments.entityId, doc.entityId),
+              eq(attachments.entityType, doc.entityType),
+            ))
+            .orderBy(desc(attachments.createdAt))
+            .limit(1);
+          if (att.length > 0 && att[0].s3Url) {
+            pdfUrl = att[0].s3Url;
+          } else if (att.length > 0 && att[0].s3Key) {
+            const { url } = await storageGet(att[0].s3Key);
+            pdfUrl = url;
           }
         }
-      } catch {
+
+        if (pdfUrl) {
+          console.log("[downloadSignedPdf] Buscando PDF original:", pdfUrl.substring(0, 80) + "...");
+          const res = await fetch(pdfUrl, {
+            headers: { "Accept": "application/pdf,*/*" },
+          });
+          console.log("[downloadSignedPdf] Resposta:", res.status, res.headers.get("content-type"));
+          if (res.ok) {
+            const buf = await res.arrayBuffer();
+            console.log("[downloadSignedPdf] Bytes recebidos:", buf.byteLength);
+            if (buf.byteLength > 0) {
+              originalPdfBytes = new Uint8Array(buf);
+            }
+          } else {
+            console.warn("[downloadSignedPdf] Fetch falhou:", res.status, res.statusText);
+          }
+        } else {
+          console.warn("[downloadSignedPdf] Nenhuma URL de PDF encontrada. entityType:", doc.entityType, "entityId:", doc.entityId);
+        }
+      } catch (err) {
+        console.error("[downloadSignedPdf] Erro ao buscar PDF original:", err);
         // Se não conseguir o PDF original, gera apenas a página de assinatura
       }
+      console.log("[downloadSignedPdf] originalPdfBytes:", originalPdfBytes ? originalPdfBytes.byteLength + " bytes" : "null");
 
       // Criar o PDF da página de assinatura
       const signaturePdf = await PDFDocument.create();
@@ -581,8 +616,15 @@ export const verificationRouter = router({
 
       if (originalPdfBytes) {
         try {
+          // Validar que os bytes começam com %PDF (header PDF)
+          const pdfHeader = Buffer.from(originalPdfBytes.slice(0, 4)).toString("ascii");
+          if (!pdfHeader.startsWith("%PDF")) {
+            console.warn("[downloadSignedPdf] Bytes não parecem um PDF válido. Header:", pdfHeader);
+            throw new Error("Invalid PDF header");
+          }
+
           // Merge: original + página de assinatura
-          const originalDoc = await PDFDocument.load(originalPdfBytes);
+          const originalDoc = await PDFDocument.load(originalPdfBytes, { ignoreEncryption: true });
           const mergedDoc = await PDFDocument.create();
           // Copiar todas as páginas do original
           const originalPages = await mergedDoc.copyPages(originalDoc, originalDoc.getPageIndices());
@@ -592,12 +634,15 @@ export const verificationRouter = router({
           const [sigPage] = await mergedDoc.copyPages(signatureDoc, [0]);
           mergedDoc.addPage(sigPage);
           finalPdfBytes = await mergedDoc.save();
-        } catch {
+          console.log("[downloadSignedPdf] Merge bem-sucedido. Páginas:", originalDoc.getPageCount() + 1);
+        } catch (mergeErr) {
+          console.error("[downloadSignedPdf] Erro no merge:", mergeErr);
           // Se o merge falhar, retornar apenas a página de assinatura
           finalPdfBytes = signatureBytes;
         }
       } else {
         // Sem PDF original: retornar apenas a página de assinatura
+        console.warn("[downloadSignedPdf] Sem PDF original — retornando apenas página de assinatura.");
         finalPdfBytes = signatureBytes;
       }
 

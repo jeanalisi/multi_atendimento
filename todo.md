@@ -681,3 +681,6 @@
 - [x] DocumentSignaturesPanel: botão "Baixar PDF Assinado" usa o PDF consolidado (documento interno + página adicional)
 - [x] Preservar conteúdo original sem corromper formatação
 - [x] Testes automatizados: 76 testes passando (6 arquivos)
+
+## Correção: PDF original não aparece no download consolidado
+- [x] Corrigir merge do PDF original no downloadSignedPdf — busca por attachment ID, validação de header %PDF, logs de diagnóstico
