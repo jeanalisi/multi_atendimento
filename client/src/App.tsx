@@ -33,6 +33,7 @@ import OrgStructure from "./pages/OrgStructure";
 import Positions from "./pages/Positions";
 import OrgInvites from "./pages/OrgInvites";
 import CentralCidadao from "./pages/CentralCidadao";
+import EstruturaAdministrativa from "./pages/EstruturaAdministrativa";
 
 function ProtocolDetailWrapper() {
   const params = useParams<{ id: string }>();
@@ -50,6 +51,8 @@ function Router() {
       <Route path={"/consultar-protocolo"} component={PublicConsulta} />
       <Route path={"/consulta-publica"} component={PublicConsulta} />
       <Route path={"/central-cidadao"} component={CentralCidadao} />
+      <Route path={"/estrutura-administrativa"} component={EstruturaAdministrativa} />
+      <Route path={"/estrutura"} component={EstruturaAdministrativa} />
 
       {/* Dashboard */}
       <Route path={"/"} component={Dashboard} />

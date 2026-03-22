@@ -35,6 +35,26 @@ export const orgUnitsRouter = router({
   treePublic: publicProcedure
     .query(() => getOrgUnitTree(null)),
 
+  positionsPublic: publicProcedure
+    .input(z.object({ orgUnitId: z.number().optional() }).optional())
+    .query(({ input }) => getPositions({ orgUnitId: input?.orgUnitId, isActive: true })),
+
+  allocationsPublic: publicProcedure
+    .input(z.object({ orgUnitId: z.number() }))
+    .query(async ({ input }) => {
+      const allocs = await getUserAllocations({ orgUnitId: input.orgUnitId, isActive: true });
+      // Return only public functional data — no CPF, personal data, bank info
+      return (allocs as any[]).map((a) => ({
+        id: a.id,
+        orgUnitId: a.orgUnitId,
+        positionId: a.positionId,
+        systemProfile: a.systemProfile,
+        userName: a.user?.name ?? null,
+        positionName: a.position?.name ?? null,
+        positionLevel: a.position?.level ?? null,
+      }));
+    }),
+
   byId: protectedProcedure
     .input(z.object({ id: z.number() }))
     .query(({ input }) => getOrgUnitById(input.id)),

@@ -166,8 +166,14 @@ export const appRouter = router({
           testImapConnection(account),
           testSmtpConnection(account),
         ]);
-        if (imap && smtp) await updateAccount(input.accountId, { status: "connected" });
-        return { imap, smtp };
+        if (imap.ok && smtp.ok) await updateAccount(input.accountId, { status: "connected" });
+        else await updateAccount(input.accountId, { status: "error" });
+        return {
+          imap: imap.ok,
+          smtp: smtp.ok,
+          imapError: imap.error,
+          smtpError: smtp.error,
+        };
       }),
     fetchEmails: protectedProcedure
       .input(z.object({ accountId: z.number() }))

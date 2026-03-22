@@ -247,3 +247,35 @@
 - [x] Modelos de Documentos: página existente e funcional (342 linhas)
 - [x] TypeScript: 0 erros de compilação
 - [x] 73 testes passando
+
+## Fase 18: Correções e Novas Funcionalidades
+
+### Correção A — Central do Cidadão sempre em tema claro
+- [x] Forçar light mode na Central do Cidadão independente do tema global do sistema
+- [x] Garantir que todas as páginas públicas (/central-cidadao, /consulta, /consultar-protocolo) usem tema claro
+- [x] Validar modo claro em desktop e mobile
+
+### Correção B — E-mail não funcionando
+- [x] Diagnosticar causa da falha de e-mail (SMTP/IMAP, configuração, logs)
+- [x] Melhorar mensagens de erro SMTP/IMAP com dicas por provedor (Gmail, Outlook, etc.)
+- [x] Retorno detalhado de erros de conexão para facilitar diagnóstico
+
+### Nova Funcionalidade 32 — Estrutura Administrativa na Central do Cidadão
+- [x] Criar página /estrutura-administrativa (pública, sem autenticação)
+- [x] Árvore hierárquica navigável (órgãos, secretarias, diretorias, departamentos, setores)
+- [x] Exibir competências e atribuições de cada unidade
+- [x] Exibir cargos vinculados a cada unidade
+- [x] Busca por órgão, setor, cargo ou serviço
+- [x] Filtro por tipo de unidade
+- [x] Integrar ao menu da Central do Cidadão (botão no header)
+
+### Nova Funcionalidade — Dashboard Administrativo Redesenhado
+- [x] Bloco de boas-vindas com saudação dinâmica (bom dia/tarde/noite)
+- [x] 8 KPI cards (Conversas Abertas, Pendentes, Resolvidas, Total Mensagens, Contas, Agentes, Protocolos, Total)
+- [x] Gráficos: Por Canal (pizza), Por Status (barras de progresso), Por Agente (barras)
+- [x] Protocolos Recentes com link direto
+- [x] Status das Contas com indicadores de cor
+- [x] Alertas quando não há contas conectadas ou agentes disponíveis
+- [x] Botão Atualizar e acesso rápido ao Inbox
+- [x] TypeScript: 0 erros de compilação
+- [x] 73 testes passando

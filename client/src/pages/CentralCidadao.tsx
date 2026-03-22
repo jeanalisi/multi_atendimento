@@ -52,7 +52,7 @@ export default function CentralCidadao() {
   );
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="light min-h-screen bg-background text-foreground">
       {/* ── Header ── */}
       <header className="sticky top-0 z-10 bg-card border-b border-border shadow-sm">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between gap-4 flex-wrap">
@@ -66,6 +66,11 @@ export default function CentralCidadao() {
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
+            <Button variant="outline" size="sm" className="gap-1.5" asChild>
+              <a href="/estrutura-administrativa">
+                <Building2 className="w-3.5 h-3.5" />Estrutura Administrativa
+              </a>
+            </Button>
             <Button variant="outline" size="sm" className="gap-1.5" asChild>
               <a href="/consulta">
                 <Search className="w-3.5 h-3.5" />Consultar Protocolo

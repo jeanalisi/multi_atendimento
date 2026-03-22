@@ -306,8 +306,12 @@ export default function Accounts() {
 
   const testEmail = trpc.accounts.testEmail.useMutation({
     onSuccess: (data) => {
-      if (data.imap && data.smtp) toast.success("Conexão IMAP/SMTP verificada com sucesso!");
-      else toast.error(`IMAP: ${data.imap ? "OK" : "Falhou"} | SMTP: ${data.smtp ? "OK" : "Falhou"}`);
+      if (data.imap && data.smtp) {
+        toast.success("✅ Conexão IMAP e SMTP verificadas com sucesso!");
+      } else {
+        if (!data.imap) toast.error(`❌ IMAP falhou: ${data.imapError ?? "Erro desconhecido"}`);
+        if (!data.smtp) toast.error(`❌ SMTP falhou: ${data.smtpError ?? "Erro desconhecido"}`);
+      }
     },
     onError: (e) => toast.error(e.message),
   });

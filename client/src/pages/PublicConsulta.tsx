@@ -63,7 +63,7 @@ export default function PublicConsulta() {
   const StatusIcon = statusCfg?.icon ?? Clock;
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="light min-h-screen bg-background text-foreground flex flex-col">
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
