@@ -14,7 +14,9 @@ import { toast } from "sonner";
 import {
   ArrowLeft, CheckCircle2, Clock, DollarSign, Users, Building2,
   MessageSquare, Info, FileText, Shield, Globe, AlertCircle, Copy,
+  Camera, MapPin, Loader2,
 } from "lucide-react";
+import { useRef, useState as useStateAlias } from "react";
 
 const REQUEST_TYPES = [
   { value: "request", label: "Requerimento" },
@@ -26,6 +28,120 @@ const REQUEST_TYPES = [
   { value: "esic", label: "e-SIC (Acesso à Informação)" },
 ];
 
+function SelfieField({ label, value, onChange, isRequired, helpText }: { label: string; value: any; onChange: (v: any) => void; isRequired: boolean; helpText?: string }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [stream, setStream] = useStateAlias<MediaStream | null>(null);
+  const [capturing, setCapturing] = useStateAlias(false);
+
+  const startCamera = async () => {
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+      setStream(s);
+      setCapturing(true);
+      if (videoRef.current) videoRef.current.srcObject = s;
+    } catch {
+      alert("Não foi possível acessar a câmera. Verifique as permissões do navegador.");
+    }
+  };
+
+  const capture = () => {
+    if (!videoRef.current || !canvasRef.current) return;
+    const ctx = canvasRef.current.getContext("2d");
+    canvasRef.current.width = videoRef.current.videoWidth;
+    canvasRef.current.height = videoRef.current.videoHeight;
+    ctx?.drawImage(videoRef.current, 0, 0);
+    const dataUrl = canvasRef.current.toDataURL("image/jpeg", 0.85);
+    onChange(dataUrl);
+    stream?.getTracks().forEach(t => t.stop());
+    setStream(null);
+    setCapturing(false);
+  };
+
+  const retake = () => { onChange(null); };
+
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-sm font-medium text-gray-700">
+        {label}{isRequired && <span className="text-red-500 ml-1">*</span>}
+      </Label>
+      {value ? (
+        <div className="space-y-2">
+          <img src={value} alt="Selfie" className="w-40 h-40 object-cover rounded-xl border border-gray-200 mx-auto block" />
+          <Button type="button" variant="outline" size="sm" className="w-full" onClick={retake}>
+            <Camera className="h-4 w-4 mr-2" />Tirar Novamente
+          </Button>
+        </div>
+      ) : capturing ? (
+        <div className="space-y-2">
+          <video ref={videoRef} autoPlay playsInline className="w-full rounded-xl border border-gray-200 max-h-48 object-cover" />
+          <canvas ref={canvasRef} className="hidden" />
+          <Button type="button" className="w-full" onClick={capture}>
+            <Camera className="h-4 w-4 mr-2" />Capturar Foto
+          </Button>
+        </div>
+      ) : (
+        <Button type="button" variant="outline" className="w-full h-24 flex-col gap-2 border-dashed" onClick={startCamera}>
+          <Camera className="h-8 w-8 text-gray-400" />
+          <span className="text-sm text-gray-500">Clique para abrir a câmera</span>
+        </Button>
+      )}
+      {helpText && <p className="text-xs text-gray-500">{helpText}</p>}
+    </div>
+  );
+}
+
+function GeoField({ label, value, onChange, isRequired, helpText }: { label: string; value: any; onChange: (v: any) => void; isRequired: boolean; helpText?: string }) {
+  const [loading, setLoading] = useStateAlias(false);
+  const coords = value as { lat: number; lng: number; address?: string } | null;
+
+  const getLocation = () => {
+    if (!navigator.geolocation) { alert("Geolocalização não suportada neste navegador."); return; }
+    setLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude: lat, longitude: lng } = pos.coords;
+        let address = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`);
+          const data = await res.json();
+          if (data.display_name) address = data.display_name;
+        } catch { }
+        onChange({ lat, lng, address });
+        setLoading(false);
+      },
+      () => { alert("Não foi possível obter a localização. Verifique as permissões."); setLoading(false); }
+    );
+  };
+
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-sm font-medium text-gray-700">
+        {label}{isRequired && <span className="text-red-500 ml-1">*</span>}
+      </Label>
+      {coords ? (
+        <div className="p-3 rounded-lg border border-green-200 bg-green-50 space-y-1">
+          <div className="flex items-center gap-2 text-green-700">
+            <MapPin className="h-4 w-4" />
+            <span className="text-sm font-medium">Localização capturada</span>
+          </div>
+          <p className="text-xs text-green-600 break-all">{coords.address}</p>
+          <p className="text-xs text-gray-400 font-mono">{coords.lat.toFixed(6)}, {coords.lng.toFixed(6)}</p>
+          <Button type="button" variant="outline" size="sm" className="mt-1" onClick={() => onChange(null)}>
+            Alterar Localização
+          </Button>
+        </div>
+      ) : (
+        <Button type="button" variant="outline" className="w-full h-16 flex-col gap-1 border-dashed" onClick={getLocation} disabled={loading}>
+          {loading ? <Loader2 className="h-5 w-5 animate-spin text-gray-400" /> : <MapPin className="h-5 w-5 text-gray-400" />}
+          <span className="text-sm text-gray-500">{loading ? "Obtendo localização..." : "Clique para capturar minha localização"}</span>
+        </Button>
+      )}
+      {helpText && <p className="text-xs text-gray-500">{helpText}</p>}
+    </div>
+  );
+}
+
 function DynamicField({ field, value, onChange }: { field: any; value: any; onChange: (v: any) => void }) {
   const { fieldType, label, placeholder, helpText, requirement } = field;
   const isRequired = requirement === "required";
@@ -35,6 +151,14 @@ function DynamicField({ field, value, onChange }: { field: any; value: any; onCh
       {label}{isRequired && <span className="text-red-500 ml-1">*</span>}
     </Label>
   );
+
+  // Special field types
+  if (fieldType === "selfie" || fieldType === "photo") {
+    return <SelfieField label={label} value={value} onChange={onChange} isRequired={isRequired} helpText={helpText} />;
+  }
+  if (fieldType === "georreferenciamento" || fieldType === "geolocation" || fieldType === "location") {
+    return <GeoField label={label} value={value} onChange={onChange} isRequired={isRequired} helpText={helpText} />;
+  }
 
   let input;
   if (fieldType === "textarea") {

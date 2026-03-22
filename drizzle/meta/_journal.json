@@ -57,6 +57,13 @@
       "when": 1774149692224,
       "tag": "0007_aspiring_shatterstar",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1774156338134,
+      "tag": "0008_clean_radioactive_man",
+      "breakpoints": true
     }
   ]
 }

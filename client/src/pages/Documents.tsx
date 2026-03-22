@@ -1,5 +1,5 @@
 import OmniLayout from "@/components/OmniLayout";
-import { RichTextEditor } from "@/components/RichTextEditor";
+import DocumentEditor from "@/components/DocumentEditor";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -226,7 +226,7 @@ function CreateDocumentDialog({ onCreated }: { onCreated: () => void }) {
                 Gerar com IA
               </Button>
             </div>
-            <RichTextEditor
+            <DocumentEditor compact
               value={form.content}
               onChange={(v) => setForm((f) => ({ ...f, content: v, aiGenerated: false }))}
               placeholder="Conteúdo do documento..."

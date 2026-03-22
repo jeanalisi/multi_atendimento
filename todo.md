@@ -495,3 +495,15 @@
 - [x] Visualização: renderizar HTML no campo descrição do ProtocolDetail (dangerouslySetInnerHTML)
 - [x] Backend: createProtocol retorna protocolId para vinculação de anexos
 - [x] TypeScript 0 erros, 73 testes passando
+
+## Fase 28: E-mails, Editor Word, Tipos de Processos Dinâmicos, Adicionar Usuários [CONCLUÍDO]
+
+- [x] NUP automático para Documentos Oficiais — já estava implementado (createOfficialDocument chama generateNup())
+- [x] Corrigir envio de e-mails (SMTP/IMAP) — TLS flexível, rejectUnauthorized false, melhor diagnóstico de erros
+- [x] Criar DocumentEditor estilo Word (TipTap avançado) com toolbar completa, área de folha centralizada, exportar PDF, imprimir, modo edição/visualização
+- [x] Substituir RichTextEditor pelo DocumentEditor em todos os módulos de Gestão Pública
+- [x] Criar tipos de processos dinâmicos (CRUD) — tabela customModules + router + páginas CustomModules e CustomModuleRecords + menu dinâmico no DashboardLayout
+- [x] Adicionar funcionalidade de convidar/criar usuários na página Usuários e Agentes — modal com e-mail, nome, unidade, cargo, perfil, validade, link gerado
+- [x] Corrigir georreferenciamento — campo GeoField no formulário dinâmico com GPS + endereço via Nominatim
+- [x] Captura de selfie dentro do sistema — campo SelfieField com câmera ao vivo e captura de foto
+- [x] 73 testes passando, TypeScript 0 erros

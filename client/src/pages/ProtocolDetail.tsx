@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
-import { RichTextEditor } from "@/components/RichTextEditor";
+import DocumentEditor from "@/components/DocumentEditor";
 import {
   ArrowLeft,
   ArrowRight,
@@ -239,7 +239,7 @@ function TramitationDialog({ protocolId, nup, onDone }: { protocolId: number; nu
           {/* Despacho — Editor Rich Text */}
           <div>
             <Label className="mb-1 block">Despacho / Observação</Label>
-            <RichTextEditor
+            <DocumentEditor compact
               value={dispatch}
               onChange={setDispatch}
               placeholder="Descreva a ação realizada, fundamento legal, observações relevantes..."

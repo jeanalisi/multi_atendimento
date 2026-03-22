@@ -889,3 +889,45 @@ export const nupNotifications = mysqlTable("nupNotifications", {
 }));
 export type NupNotification = typeof nupNotifications.$inferSelect;
 export type InsertNupNotification = typeof nupNotifications.$inferInsert;
+
+// ─── Custom Modules (Tipos de Processos Dinâmicos na Gestão Pública) ──────────
+export const customModules = mysqlTable("customModules", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 128 }).notNull(),           // Ex: "Licenças Ambientais"
+  slug: varchar("slug", { length: 64 }).notNull().unique(),   // Ex: "licencas-ambientais"
+  description: text("description"),
+  icon: varchar("icon", { length: 64 }).default("FileText"),  // Lucide icon name
+  color: varchar("color", { length: 32 }).default("#6366f1"), // Hex color
+  menuSection: varchar("menuSection", { length: 64 }).default("gestao-publica"), // section in sidebar
+  menuOrder: int("menuOrder").default(0),
+  isActive: boolean("isActive").default(true).notNull(),
+  fields: json("fields"),   // JSON array of field definitions (same as FormBuilder)
+  createdBy: int("createdBy"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type CustomModule = typeof customModules.$inferSelect;
+export type InsertCustomModule = typeof customModules.$inferInsert;
+
+// ─── Custom Module Records (Registros dos processos dinâmicos) ────────────────
+export const customModuleRecords = mysqlTable("customModuleRecords", {
+  id: int("id").autoincrement().primaryKey(),
+  moduleId: int("moduleId").notNull(),
+  nup: varchar("nup", { length: 32 }),
+  title: varchar("title", { length: 256 }).notNull(),
+  status: varchar("status", { length: 64 }).default("open").notNull(),
+  priority: mysqlEnum("priority", ["low", "normal", "high", "urgent"]).default("normal").notNull(),
+  assignedTo: int("assignedTo"),
+  sectorId: int("sectorId"),
+  data: json("data"),         // JSON with field values
+  content: text("content"),   // Rich text content (HTML)
+  isConfidential: boolean("isConfidential").default(false).notNull(),
+  createdBy: int("createdBy"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  moduleIdx: index("cmr_module_idx").on(table.moduleId),
+  nupIdx: index("cmr_nup_idx").on(table.nup),
+}));
+export type CustomModuleRecord = typeof customModuleRecords.$inferSelect;
+export type InsertCustomModuleRecord = typeof customModuleRecords.$inferInsert;

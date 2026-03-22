@@ -36,6 +36,8 @@ import AcceptInvite from "./pages/AcceptInvite";
 import CentralCidadao from "./pages/CentralCidadao";
 import EstruturaAdministrativa from "./pages/EstruturaAdministrativa";
 import ServicoDetalhe from "./pages/ServicoDetalhe";
+import CustomModules from "./pages/CustomModules";
+import CustomModuleRecords from "./pages/CustomModuleRecords";
 
 function ProtocolDetailWrapper() {
   const params = useParams<{ id: string }>();
@@ -78,6 +80,8 @@ function Router() {
       <Route path={"/ombudsman"} component={Ombudsman} />
       <Route path={"/templates"} component={Templates} />
       <Route path={"/sectors"} component={Sectors} />
+      <Route path={"/gestao-publica/configurar"} component={CustomModules} />
+      <Route path={"/gestao-publica/:slug"} component={CustomModuleRecords} />
 
       {/* Módulos Avançados */}
       <Route path={"/service-types"} component={ServiceTypes} />

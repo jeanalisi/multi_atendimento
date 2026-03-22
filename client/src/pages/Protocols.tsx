@@ -1,5 +1,5 @@
 import OmniLayout from "@/components/OmniLayout";
-import { RichTextEditor } from "@/components/RichTextEditor";
+import DocumentEditor from "@/components/DocumentEditor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -245,7 +245,7 @@ function CreateProtocolDialog({ onCreated }: { onCreated: () => void }) {
             <div className="col-span-2">
               <Label>Descrição</Label>
               <div className="mt-1">
-                <RichTextEditor
+                <DocumentEditor compact
                   value={form.description}
                   onChange={(v) => setForm((f) => ({ ...f, description: v }))}
                   placeholder="Detalhes da solicitação..."

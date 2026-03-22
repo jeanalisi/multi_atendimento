@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { RichTextEditor } from "@/components/RichTextEditor";
+import DocumentEditor from "@/components/DocumentEditor";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import {
@@ -144,7 +144,7 @@ function CreateTemplateDialog({ onCreated }: { onCreated: () => void }) {
                 Gerar com IA
               </Button>
             </div>
-            <RichTextEditor
+            <DocumentEditor compact
               value={form.content}
               onChange={(v) => setForm((f) => ({ ...f, content: v }))}
               placeholder="Conteúdo do modelo com variáveis como {{nome}}, {{data}}, etc..."
