@@ -49,6 +49,16 @@ import {
 import { testImapConnection, testSmtpConnection, sendEmail, fetchEmails } from "./email";
 import { getIo } from "./_core/socketio";
 import { caiusRouter } from "./routers-caius";
+import {
+  serviceTypesRouter,
+  formTemplatesRouter,
+  attachmentsRouter,
+  contextHelpRouter,
+  onlineSessionsRouter,
+  institutionalConfigRouter,
+  globalSearchRouter,
+  userRegistrationRouter,
+} from "./routers-advanced";
 
 // ─── Admin guard ──────────────────────────────────────────────────────────────
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -397,6 +407,15 @@ export const appRouter = router({
 
   // ── CAIUS Modules ──────────────────────────────────────────────────────────
   caius: caiusRouter,
+  // ── Advanced Modules ──────────────────────────────────────────────────────
+  serviceTypes: serviceTypesRouter,
+  formTemplates: formTemplatesRouter,
+  attachments: attachmentsRouter,
+  contextHelp: contextHelpRouter,
+  onlineSessions: onlineSessionsRouter,
+  institutionalConfig: institutionalConfigRouter,
+  globalSearch: globalSearchRouter,
+  userRegistration: userRegistrationRouter,
 
   // ── Analytics ─────────────────────────────────────────────────────────────
   analytics: router({

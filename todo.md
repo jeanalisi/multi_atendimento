@@ -81,3 +81,45 @@
 - [x] 34 testes automatizados passando (3 arquivos de teste)
 - [x] TypeScript sem erros
 - [x] Checkpoint final e entrega
+
+## Fase 9: CAIUS Avançado — 29 Novas Funcionalidades
+
+### Banco de Dados (Fase 9)
+- [x] Tabela: serviceTypes (tipos de atendimento configuráveis com SLA, fluxo, sigilo)
+- [x] Tabela: formTemplates (modelos de formulários dinâmicos)
+- [x] Tabela: formFields (campos configuráveis por formulário)
+- [x] Tabela: attachmentConfigs (configuração de anexos por tipo)
+- [x] Tabela: contextHelp (ajuda contextual por funcionalidade/perfil)
+- [x] Tabela: onlineSessions (sessões ativas de usuários)
+- [x] Tabela: institutionalConfig (identidade visual, logomarca, cores, textos)
+- [x] Tabela: searchIndex (índice de pesquisa global)
+- [x] Tabela: userRegistrations (cadastro próprio com e-mail/senha)
+
+### Backend (Fase 9)
+- [x] Router: serviceTypes (CRUD tipos de atendimento com regras e SLA)
+- [x] Router: formTemplates (CRUD formulários dinâmicos)
+- [x] Router: formFields (CRUD campos com validação, máscara, condicional)
+- [x] Router: contextHelp (CRUD ajuda contextual por funcionalidade)
+- [x] Router: onlineSessions (listar, encerrar sessões, monitoramento)
+- [x] Router: globalSearch (pesquisa global por NUP, assunto, tipo, setor)
+- [x] Router: institutionalConfig (identidade visual, logomarca, cores)
+- [x] Router: attachments (upload S3, configs de anexo por tipo)
+- [x] Router: userRegistration (cadastro próprio com e-mail/senha)
+
+### Interface (Fase 9)
+- [x] Toggle modo claro/escuro persistente por usuário (ThemeContext + sidebar)
+- [x] Barra de pesquisa global com painel lateral e resultados agrupados por categoria
+- [x] Componente GlobalSearchResults com navegação direta para entidades
+- [x] Página: Tipos de Atendimento (configuração de serviços, SLA, campos obrigatórios)
+- [x] Página: Construtor de Formulários Dinâmicos (campos, tipos, validações, ordem)
+- [x] Página: Gerenciamento de Anexos (configs de tipos, tamanhos, obrigatoriedade)
+- [x] Página: Configurações Institucionais (logomarca, cores, textos, dados do órgão)
+- [x] Página: Sessões Online (monitoramento de usuários ativos, encerramento de sessão)
+- [x] Página: Ajuda Contextual (admin) — tooltips, modais, instruções por tela
+- [x] Sidebar atualizado com módulos avançados (admin only)
+
+## Fase 10: Testes Finais e Entrega
+- [x] 47 testes automatizados passando (4 arquivos de teste)
+- [x] TypeScript sem erros (0 erros de compilação)
+- [x] Servidor rodando corretamente (HTTP 200)
+- [x] Checkpoint final e entrega

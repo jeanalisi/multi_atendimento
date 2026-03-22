@@ -9,21 +9,30 @@ import {
   Building2,
   ClipboardList,
   FileText,
+  FormInput,
+  HelpCircle,
   Inbox,
   LayoutDashboard,
   LogOut,
   MessageSquare,
+  Monitor,
+  Moon,
+  Paperclip,
   PenLine,
   Scale,
+  Search,
   Settings,
+  Settings2,
   ShieldCheck,
   Sparkles,
+  Sun,
   Tag,
   Ticket,
   Users,
   Wifi,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { useTheme } from "@/contexts/ThemeContext";
 import { Link, useLocation } from "wouter";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Badge } from "./ui/badge";
@@ -36,6 +45,7 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { ScrollArea } from "./ui/scroll-area";
+import GlobalSearchResults from "./GlobalSearchResults";
 import { Separator } from "./ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
@@ -64,6 +74,15 @@ const adminItems = [
   { href: "/audit", icon: ShieldCheck, label: "Auditoria" },
   { href: "/ai-settings", icon: Sparkles, label: "Integrações de IA" },
   { href: "/tags", icon: Tag, label: "Tags" },
+];
+
+const advancedItems = [
+  { href: "/service-types", icon: Settings2, label: "Tipos de Atendimento" },
+  { href: "/form-builder", icon: FormInput, label: "Construtor de Formulários" },
+  { href: "/attachments", icon: Paperclip, label: "Gestão de Anexos" },
+  { href: "/institutional", icon: Building2, label: "Config. Institucional" },
+  { href: "/online-sessions", icon: Monitor, label: "Sessões Online" },
+  { href: "/context-help", icon: HelpCircle, label: "Ajuda Contextual" },
 ];
 
 interface OmniLayoutProps {
@@ -99,6 +118,10 @@ export default function OmniLayout({ children, title }: OmniLayoutProps) {
   const { user, loading, isAuthenticated, logout } = useAuth();
   const [location] = useLocation();
   const [notifOpen, setNotifOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const { resolvedTheme, toggleTheme } = useTheme();
+  const searchRef = useRef<HTMLInputElement>(null);
 
   const { data: notifications } = trpc.notifications.list.useQuery(undefined, {
     enabled: isAuthenticated,
@@ -190,12 +213,44 @@ export default function OmniLayout({ children, title }: OmniLayoutProps) {
                 {adminItems.map((item) => (
                   <NavItem key={item.href} {...item} isActive={location.startsWith(item.href)} />
                 ))}
+                <Separator className="my-1.5 w-8 bg-sidebar-border" />
+                {advancedItems.map((item) => (
+                  <NavItem key={item.href} {...item} isActive={location.startsWith(item.href)} />
+                ))}
               </>
             )}
           </div>
         </ScrollArea>
 
         <Separator className="mt-1 mb-1 w-8 bg-sidebar-border" />
+
+        {/* Search */}
+        <Tooltip delayDuration={0}>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => setSearchOpen(!searchOpen)}
+              className="flex h-10 w-10 items-center justify-center rounded-xl text-sidebar-foreground/50 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-all"
+            >
+              <Search className="h-[18px] w-[18px]" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="right" className="text-xs">Pesquisa Global</TooltipContent>
+        </Tooltip>
+
+        {/* Theme Toggle */}
+        <Tooltip delayDuration={0}>
+          <TooltipTrigger asChild>
+            <button
+              onClick={toggleTheme}
+              className="flex h-10 w-10 items-center justify-center rounded-xl text-sidebar-foreground/50 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-all"
+            >
+              {resolvedTheme === "dark" ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="right" className="text-xs">
+            {resolvedTheme === "dark" ? "Modo Claro" : "Modo Escuro"}
+          </TooltipContent>
+        </Tooltip>
 
         {/* Notifications */}
         <Tooltip delayDuration={0}>
@@ -266,6 +321,38 @@ export default function OmniLayout({ children, title }: OmniLayoutProps) {
           {children}
         </div>
       </main>
+
+      {/* Global Search Panel */}
+      {searchOpen && (
+        <div className="absolute left-16 top-0 z-50 h-full w-96 border-r border-border bg-card shadow-2xl">
+          <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+            <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+            <input
+              ref={searchRef}
+              autoFocus
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Pesquisar protocolos, conversas, contatos..."
+              className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+            />
+            <button onClick={() => { setSearchOpen(false); setSearchQuery(""); }} className="text-muted-foreground hover:text-foreground text-xs">
+              Fechar
+            </button>
+          </div>
+          <div className="p-4 space-y-2">
+            {!searchQuery && (
+              <div className="flex flex-col items-center justify-center py-12 gap-2">
+                <Search className="h-8 w-8 text-muted-foreground/30" />
+                <p className="text-sm text-muted-foreground">Digite para pesquisar</p>
+                <p className="text-xs text-muted-foreground/60">Protocolos, conversas, contatos, documentos</p>
+              </div>
+            )}
+            {searchQuery && searchQuery.length >= 2 && (
+              <GlobalSearchResults query={searchQuery} onClose={() => { setSearchOpen(false); setSearchQuery(""); }} />
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Notification panel */}
       {notifOpen && (

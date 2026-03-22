@@ -430,3 +430,233 @@ export const nupCounter = mysqlTable("nupCounter", {
   sequence: int("sequence").notNull().default(0),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
+
+// ─── Service Types (Tipos de Atendimento Configuráveis) ───────────────────────
+export const serviceTypes = mysqlTable("serviceTypes", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  category: varchar("category", { length: 128 }),
+  code: varchar("code", { length: 64 }).unique(),
+  initialSectorId: int("initialSectorId"),
+  slaResponseHours: int("slaResponseHours"),
+  slaConclusionHours: int("slaConclusionHours"),
+  secrecyLevel: mysqlEnum("secrecyLevel", ["public", "restricted", "confidential", "secret"]).default("public").notNull(),
+  requiresApproval: boolean("requiresApproval").default(false).notNull(),
+  canConvertToProcess: boolean("canConvertToProcess").default(false).notNull(),
+  allowPublicConsult: boolean("allowPublicConsult").default(true).notNull(),
+  requiresSelfie: boolean("requiresSelfie").default(false).notNull(),
+  requiresGeolocation: boolean("requiresGeolocation").default(false).notNull(),
+  requiresStrongAuth: boolean("requiresStrongAuth").default(false).notNull(),
+  defaultResponseTemplateId: int("defaultResponseTemplateId"),
+  allowedProfiles: json("allowedProfiles"),
+  flowConfig: json("flowConfig"),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdById: int("createdById"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ServiceType = typeof serviceTypes.$inferSelect;
+export type InsertServiceType = typeof serviceTypes.$inferInsert;
+
+// ─── Form Templates (Modelos de Formulários Dinâmicos) ────────────────────────
+export const formTemplates = mysqlTable("formTemplates", {
+  id: int("id").autoincrement().primaryKey(),
+  serviceTypeId: int("serviceTypeId"),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  version: int("version").default(1).notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdById: int("createdById"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type FormTemplate = typeof formTemplates.$inferSelect;
+export type InsertFormTemplate = typeof formTemplates.$inferInsert;
+
+// ─── Form Fields (Campos Configuráveis de Formulários) ────────────────────────
+export const formFields = mysqlTable("formFields", {
+  id: int("id").autoincrement().primaryKey(),
+  formTemplateId: int("formTemplateId").notNull(),
+  name: varchar("name", { length: 128 }).notNull(),
+  label: varchar("label", { length: 255 }).notNull(),
+  fieldType: mysqlEnum("fieldType", [
+    "text", "textarea", "number", "currency", "cpf", "cnpj", "rg", "matricula",
+    "email", "phone", "date", "time", "datetime", "address", "cep", "neighborhood",
+    "city", "state", "select", "multiselect", "checkbox", "radio", "dependent_list",
+    "file_upload", "image", "selfie", "geolocation", "map", "calculated", "hidden",
+    "signature", "acknowledgment"
+  ]).notNull(),
+  placeholder: varchar("placeholder", { length: 255 }),
+  helpText: text("helpText"),
+  isRequired: boolean("isRequired").default(false).notNull(),
+  defaultValue: text("defaultValue"),
+  mask: varchar("mask", { length: 128 }),
+  maxLength: int("maxLength"),
+  validationRegex: varchar("validationRegex", { length: 512 }),
+  options: json("options"),
+  conditionalRule: json("conditionalRule"),
+  visibleToProfiles: json("visibleToProfiles"),
+  editableByProfiles: json("editableByProfiles"),
+  isReadOnly: boolean("isReadOnly").default(false).notNull(),
+  sectionName: varchar("sectionName", { length: 128 }),
+  displayOrder: int("displayOrder").default(0).notNull(),
+  dependsOnFieldId: int("dependsOnFieldId"),
+  autoFill: varchar("autoFill", { length: 128 }),
+  isReusable: boolean("isReusable").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type FormField = typeof formFields.$inferSelect;
+export type InsertFormField = typeof formFields.$inferInsert;
+
+// ─── Attachment Configs (Configuração de Anexos por Tipo) ─────────────────────
+export const attachmentConfigs = mysqlTable("attachmentConfigs", {
+  id: int("id").autoincrement().primaryKey(),
+  serviceTypeId: int("serviceTypeId"),
+  formTemplateId: int("formTemplateId"),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  acceptedTypes: json("acceptedTypes"),
+  maxFileSizeMb: int("maxFileSizeMb").default(10).notNull(),
+  maxTotalSizeMb: int("maxTotalSizeMb").default(50).notNull(),
+  minCount: int("minCount").default(0).notNull(),
+  maxCount: int("maxCount").default(10).notNull(),
+  isRequired: boolean("isRequired").default(false).notNull(),
+  allowedAtStages: json("allowedAtStages"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type AttachmentConfig = typeof attachmentConfigs.$inferSelect;
+export type InsertAttachmentConfig = typeof attachmentConfigs.$inferInsert;
+
+// ─── Attachments (Anexos de Protocolos/Processos) ─────────────────────────────
+export const attachments = mysqlTable("attachments", {
+  id: int("id").autoincrement().primaryKey(),
+  nup: varchar("nup", { length: 32 }),
+  entityType: varchar("entityType", { length: 64 }).notNull(),
+  entityId: int("entityId").notNull(),
+  configId: int("configId"),
+  uploadedById: int("uploadedById").notNull(),
+  fileName: varchar("fileName", { length: 512 }).notNull(),
+  originalName: varchar("originalName", { length: 512 }).notNull(),
+  mimeType: varchar("mimeType", { length: 128 }).notNull(),
+  fileSizeBytes: bigint("fileSizeBytes", { mode: "number" }).notNull(),
+  s3Key: varchar("s3Key", { length: 1024 }).notNull(),
+  s3Url: text("s3Url").notNull(),
+  category: varchar("category", { length: 128 }),
+  version: int("version").default(1).notNull(),
+  isDeleted: boolean("isDeleted").default(false).notNull(),
+  deletedAt: timestamp("deletedAt"),
+  deletedById: int("deletedById"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type Attachment = typeof attachments.$inferSelect;
+export type InsertAttachment = typeof attachments.$inferInsert;
+
+// ─── Context Help (Ajuda Contextual por Funcionalidade) ───────────────────────
+export const contextHelp = mysqlTable("contextHelp", {
+  id: int("id").autoincrement().primaryKey(),
+  featureKey: varchar("featureKey", { length: 128 }).notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  detailedInstructions: text("detailedInstructions"),
+  examples: text("examples"),
+  requiredDocuments: text("requiredDocuments"),
+  warnings: text("warnings"),
+  usefulLinks: json("usefulLinks"),
+  normativeBase: text("normativeBase"),
+  targetProfiles: json("targetProfiles"),
+  displayMode: mysqlEnum("displayMode", ["tooltip", "modal", "sidebar", "expandable"]).default("modal").notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdById: int("createdById"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ContextHelp = typeof contextHelp.$inferSelect;
+export type InsertContextHelp = typeof contextHelp.$inferInsert;
+
+// ─── Online Sessions (Sessões Ativas de Usuários) ─────────────────────────────
+export const onlineSessions = mysqlTable("onlineSessions", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  sessionToken: varchar("sessionToken", { length: 256 }).notNull().unique(),
+  ipAddress: varchar("ipAddress", { length: 64 }),
+  userAgent: text("userAgent"),
+  channel: varchar("channel", { length: 64 }).default("web").notNull(),
+  currentPage: varchar("currentPage", { length: 512 }),
+  lastActivity: timestamp("lastActivity").defaultNow().notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
+  terminatedById: int("terminatedById"),
+  terminatedAt: timestamp("terminatedAt"),
+  loginAt: timestamp("loginAt").defaultNow().notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type OnlineSession = typeof onlineSessions.$inferSelect;
+export type InsertOnlineSession = typeof onlineSessions.$inferInsert;
+
+// ─── Institutional Config (Identidade Visual Institucional) ───────────────────
+export const institutionalConfig = mysqlTable("institutionalConfig", {
+  id: int("id").autoincrement().primaryKey(),
+  key: varchar("key", { length: 128 }).notNull().unique(),
+  value: text("value"),
+  type: mysqlEnum("type", ["text", "color", "url", "boolean", "json"]).default("text").notNull(),
+  label: varchar("label", { length: 255 }),
+  description: text("description"),
+  updatedById: int("updatedById"),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type InstitutionalConfig = typeof institutionalConfig.$inferSelect;
+export type InsertInstitutionalConfig = typeof institutionalConfig.$inferInsert;
+
+// ─── User Registrations (Cadastro Próprio da Plataforma) ──────────────────────
+export const userRegistrations = mysqlTable("userRegistrations", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId"),
+  email: varchar("email", { length: 320 }).notNull().unique(),
+  passwordHash: text("passwordHash").notNull(),
+  cpf: varchar("cpf", { length: 14 }),
+  cnpj: varchar("cnpj", { length: 18 }),
+  phone: varchar("phone", { length: 20 }),
+  googleId: varchar("googleId", { length: 128 }),
+  emailVerified: boolean("emailVerified").default(false).notNull(),
+  emailVerifyToken: varchar("emailVerifyToken", { length: 256 }),
+  passwordResetToken: varchar("passwordResetToken", { length: 256 }),
+  passwordResetExpiry: timestamp("passwordResetExpiry"),
+  termsAcceptedAt: timestamp("termsAcceptedAt"),
+  mfaEnabled: boolean("mfaEnabled").default(false).notNull(),
+  mfaSecret: varchar("mfaSecret", { length: 128 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type UserRegistration = typeof userRegistrations.$inferSelect;
+export type InsertUserRegistration = typeof userRegistrations.$inferInsert;
+
+// ─── Search Index (Índice de Pesquisa Global) ─────────────────────────────────
+export const searchIndex = mysqlTable("searchIndex", {
+  id: int("id").autoincrement().primaryKey(),
+  entityType: varchar("entityType", { length: 64 }).notNull(),
+  entityId: int("entityId").notNull(),
+  nup: varchar("nup", { length: 32 }),
+  title: varchar("title", { length: 512 }).notNull(),
+  content: text("content"),
+  tags: json("tags"),
+  visibleToProfiles: json("visibleToProfiles"),
+  isPublic: boolean("isPublic").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  entityIdx: index("entity_idx").on(table.entityType, table.entityId),
+  nupIdx: index("nup_idx").on(table.nup),
+}));
+
+export type SearchIndex = typeof searchIndex.$inferSelect;
+export type InsertSearchIndex = typeof searchIndex.$inferInsert;

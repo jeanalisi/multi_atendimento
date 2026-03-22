@@ -23,6 +23,12 @@ import Sectors from "./pages/Sectors";
 import Tags from "./pages/Tags";
 import Templates from "./pages/Templates";
 import Tickets from "./pages/Tickets";
+import ServiceTypes from "./pages/ServiceTypes";
+import FormBuilder from "./pages/FormBuilder";
+import InstitutionalSettings from "./pages/InstitutionalSettings";
+import OnlineSessions from "./pages/OnlineSessions";
+import ContextHelpAdmin from "./pages/ContextHelpAdmin";
+import AttachmentsManager from "./pages/AttachmentsManager";
 
 function ProtocolDetailWrapper() {
   const params = useParams<{ id: string }>();
@@ -59,6 +65,15 @@ function Router() {
       <Route path={"/templates"} component={Templates} />
       <Route path={"/sectors"} component={Sectors} />
 
+      {/* Módulos Avançados */}
+      <Route path={"/service-types"} component={ServiceTypes} />
+      <Route path={"/form-builder"} component={FormBuilder} />
+      <Route path={"/form-builder/:id"} component={FormBuilder} />
+      <Route path={"/attachments"} component={AttachmentsManager} />
+      <Route path={"/institutional"} component={InstitutionalSettings} />
+      <Route path={"/online-sessions"} component={OnlineSessions} />
+      <Route path={"/context-help"} component={ContextHelpAdmin} />
+
       {/* Administração */}
       <Route path={"/reports"} component={Reports} />
       <Route path={"/agents"} component={Agents} />
@@ -74,7 +89,7 @@ function Router() {
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider defaultTheme="dark">
+      <ThemeProvider defaultTheme="dark" switchable>
         <TooltipProvider>
           <Toaster />
           <Router />
