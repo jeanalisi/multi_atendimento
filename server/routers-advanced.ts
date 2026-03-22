@@ -37,6 +37,19 @@ import {
   upsertContextHelp,
   upsertSearchIndex,
 } from "./db-advanced";
+import {
+  createServiceTypeField,
+  createServiceTypeDocument,
+  deleteServiceTypeField,
+  deleteServiceTypeDocument,
+  getCidadaoServiceDetail,
+  getCidadaoServices,
+  getServiceTypeDocuments,
+  getServiceTypeFields,
+  reorderServiceTypeFields,
+  updateServiceTypeDocument,
+  updateServiceTypeField,
+} from "./db-service-config";
 import { storagePut } from "./storage";
 import { nanoid } from "nanoid";
 
@@ -352,6 +365,107 @@ export const globalSearchRouter = router({
       isPublic: z.boolean().default(false),
     }))
     .mutation(({ input }) => upsertSearchIndex(input.entityType, input.entityId, input)),
+});
+
+// ─── Service Type Fields Router ────────────────────────────────────────────────
+export const serviceTypeFieldsRouter = router({
+  list: protectedProcedure
+    .input(z.object({ serviceTypeId: z.number() }))
+    .query(({ input }) => getServiceTypeFields(input.serviceTypeId)),
+
+  create: protectedProcedure
+    .input(z.object({
+      serviceTypeId: z.number(),
+      name: z.string().min(1),
+      label: z.string().min(1),
+      fieldType: z.enum(["text","textarea","number","email","phone","cpf","cnpj","date","datetime","select","multiselect","checkbox","radio","file","image","signature","geolocation"]).default("text"),
+      requirement: z.enum(["required","complementary","optional"]).default("optional"),
+      placeholder: z.string().optional(),
+      helpText: z.string().optional(),
+      options: z.string().optional(),
+      mask: z.string().optional(),
+      sortOrder: z.number().default(0),
+    }))
+    .mutation(({ input }) => createServiceTypeField(input)),
+
+  update: protectedProcedure
+    .input(z.object({
+      id: z.number(),
+      label: z.string().optional(),
+      fieldType: z.enum(["text","textarea","number","email","phone","cpf","cnpj","date","datetime","select","multiselect","checkbox","radio","file","image","signature","geolocation"]).optional(),
+      requirement: z.enum(["required","complementary","optional"]).optional(),
+      placeholder: z.string().optional(),
+      helpText: z.string().optional(),
+      options: z.string().optional(),
+      mask: z.string().optional(),
+      sortOrder: z.number().optional(),
+      isActive: z.boolean().optional(),
+    }))
+    .mutation(({ input }) => { const { id, ...data } = input; return updateServiceTypeField(id, data); }),
+
+  delete: protectedProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(({ input }) => deleteServiceTypeField(input.id)),
+
+  reorder: protectedProcedure
+    .input(z.object({ items: z.array(z.object({ id: z.number(), sortOrder: z.number() })) }))
+    .mutation(({ input }) => reorderServiceTypeFields(input.items)),
+});
+
+// ─── Service Type Documents Router ────────────────────────────────────────────
+export const serviceTypeDocumentsRouter = router({
+  list: protectedProcedure
+    .input(z.object({ serviceTypeId: z.number() }))
+    .query(({ input }) => getServiceTypeDocuments(input.serviceTypeId)),
+
+  listPublic: publicProcedure
+    .input(z.object({ serviceTypeId: z.number() }))
+    .query(({ input }) => getServiceTypeDocuments(input.serviceTypeId)),
+
+  create: protectedProcedure
+    .input(z.object({
+      serviceTypeId: z.number(),
+      name: z.string().min(1),
+      description: z.string().optional(),
+      requirement: z.enum(["required","complementary","optional"]).default("required"),
+      acceptedFormats: z.string().default("pdf,jpg,png"),
+      maxSizeMb: z.number().default(10),
+      example: z.string().optional(),
+      sortOrder: z.number().default(0),
+    }))
+    .mutation(({ input }) => createServiceTypeDocument(input)),
+
+  update: protectedProcedure
+    .input(z.object({
+      id: z.number(),
+      name: z.string().optional(),
+      description: z.string().optional(),
+      requirement: z.enum(["required","complementary","optional"]).optional(),
+      acceptedFormats: z.string().optional(),
+      maxSizeMb: z.number().optional(),
+      sortOrder: z.number().optional(),
+      isActive: z.boolean().optional(),
+    }))
+    .mutation(({ input }) => { const { id, ...data } = input; return updateServiceTypeDocument(id, data); }),
+
+  delete: protectedProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(({ input }) => deleteServiceTypeDocument(input.id)),
+});
+
+// ─── Cidadão (Public Citizen Portal) Router ────────────────────────────────────
+export const cidadaoRouter = router({
+  listServices: publicProcedure
+    .input(z.object({ search: z.string().optional(), category: z.string().optional() }).optional())
+    .query(({ input }) => getCidadaoServices(input)),
+
+  getService: publicProcedure
+    .input(z.object({ id: z.number() }))
+    .query(async ({ input }) => {
+      const service = await getCidadaoServiceDetail(input.id);
+      if (!service) throw new TRPCError({ code: "NOT_FOUND" });
+      return service;
+    }),
 });
 
 // ─── User Registration Router ──────────────────────────────────────────────────

@@ -171,3 +171,32 @@
 - [x] Layout dividido em dois painéis: branding (esquerda) + formulário de login (direita)
 - [x] Cards de funcionalidades na tela de login (Inbox, Protocolo, Estrutura Org., Auditoria)
 - [x] Acesso público separado com link para Consulta por NUP
+
+## Fase 14: Campos/Documentos em Tipos de Atendimento + Central do Cidadão
+
+### Banco de Dados
+- [x] Tabela: serviceTypeFields (campos obrigatórios/complementares por tipo de atendimento)
+- [x] Tabela: serviceTypeDocuments (documentos exigidos por tipo de atendimento)
+
+### Backend
+- [x] Router: serviceTypeFields (CRUD campos por tipo, obrigatório/complementar, tipo de dado, ordem)
+- [x] Router: serviceTypeDocuments (CRUD documentos por tipo, obrigatório/complementar, descrição)
+- [x] Router: cidadao.listServices (listagem pública de serviços disponíveis)
+- [x] Router: cidadao.getService (detalhes públicos de um serviço com campos e documentos)
+
+### Interface
+- [x] ServiceTypes: aba "Campos" para configurar campos obrigatórios e complementares
+- [x] ServiceTypes: aba "Documentos" para configurar documentos exigidos
+- [x] ServiceTypes: indicadores visuais de obrigatório/complementar em cada item
+- [x] Página: Central do Cidadão (/central-cidadao) — pública, sem autenticação
+- [x] Central do Cidadão: listagem de todos os serviços disponíveis com busca e filtros por categoria
+- [x] Central do Cidadão: card de serviço com nome, descrição, SLA, setor responsável
+- [x] Central do Cidadão: modal de detalhes com campos e documentos necessários (obrigatórios/complementares)
+- [x] Central do Cidadão: link para abrir protocolo ou acessar a plataforma
+- [x] Tela de login: botão "Central de Serviços ao Cidadão" destacado
+
+## Fase 15: Testes Finais e Entrega
+- [x] 73 testes automatizados passando (6 arquivos de teste)
+- [x] TypeScript sem erros (0 erros de compilação)
+- [x] Servidor rodando corretamente (HTTP 200)
+- [x] Checkpoint final e entrega

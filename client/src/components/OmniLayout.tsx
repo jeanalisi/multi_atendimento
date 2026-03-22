@@ -244,8 +244,14 @@ export default function OmniLayout({ children, title }: OmniLayoutProps) {
               </div>
             </div>
 
-            <Link href="/consulta">
+            <Link href="/central-cidadao">
               <button className="flex w-full items-center justify-center gap-2 rounded-xl border border-border/60 bg-card/50 px-6 py-3 text-sm font-medium text-foreground/80 transition-all hover:bg-card hover:text-foreground hover:border-border">
+                <Building2 className="h-4 w-4 text-muted-foreground" />
+                Central de Serviços ao Cidadão
+              </button>
+            </Link>
+            <Link href="/consulta">
+              <button className="flex w-full items-center justify-center gap-2 rounded-xl border border-border/60 bg-card/50 px-5 py-2.5 text-sm font-medium text-foreground/70 transition-all hover:bg-card hover:text-foreground hover:border-border">
                 <ClipboardList className="h-4 w-4 text-muted-foreground" />
                 Consultar protocolo por NUP
               </button>

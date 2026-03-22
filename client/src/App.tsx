@@ -32,6 +32,7 @@ import AttachmentsManager from "./pages/AttachmentsManager";
 import OrgStructure from "./pages/OrgStructure";
 import Positions from "./pages/Positions";
 import OrgInvites from "./pages/OrgInvites";
+import CentralCidadao from "./pages/CentralCidadao";
 
 function ProtocolDetailWrapper() {
   const params = useParams<{ id: string }>();
@@ -46,6 +47,7 @@ function Router() {
     <Switch>
       {/* Public route — no auth required */}
       <Route path={"/consulta"} component={PublicConsulta} />
+      <Route path={"/central-cidadao"} component={CentralCidadao} />
 
       {/* Dashboard */}
       <Route path={"/"} component={Dashboard} />

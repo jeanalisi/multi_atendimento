@@ -786,3 +786,50 @@ export const orgInvites = mysqlTable("orgInvites", {
 
 export type OrgInvite = typeof orgInvites.$inferSelect;
 export type InsertOrgInvite = typeof orgInvites.$inferInsert;
+
+// ─── Service Type Fields (Campos por Tipo de Atendimento) ─────────────────────
+export const serviceTypeFields = mysqlTable("serviceTypeFields", {
+  id: int("id").autoincrement().primaryKey(),
+  serviceTypeId: int("serviceTypeId").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  label: varchar("label", { length: 255 }).notNull(),
+  fieldType: mysqlEnum("fieldType", [
+    "text", "textarea", "number", "email", "phone", "cpf", "cnpj",
+    "date", "datetime", "select", "multiselect", "checkbox", "radio",
+    "file", "image", "signature", "geolocation"
+  ]).default("text").notNull(),
+  requirement: mysqlEnum("requirement", ["required", "complementary", "optional"]).default("optional").notNull(),
+  placeholder: varchar("placeholder", { length: 255 }),
+  helpText: text("helpText"),
+  options: text("options"),           // JSON array for select/radio/checkbox options
+  mask: varchar("mask", { length: 64 }),
+  validation: text("validation"),     // JSON with min, max, pattern, etc.
+  sortOrder: int("sortOrder").default(0).notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  serviceTypeIdx: index("stf_serviceType_idx").on(table.serviceTypeId),
+}));
+export type ServiceTypeField = typeof serviceTypeFields.$inferSelect;
+export type InsertServiceTypeField = typeof serviceTypeFields.$inferInsert;
+
+// ─── Service Type Documents (Documentos por Tipo de Atendimento) ──────────────
+export const serviceTypeDocuments = mysqlTable("serviceTypeDocuments", {
+  id: int("id").autoincrement().primaryKey(),
+  serviceTypeId: int("serviceTypeId").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  requirement: mysqlEnum("requirement", ["required", "complementary", "optional"]).default("required").notNull(),
+  acceptedFormats: varchar("acceptedFormats", { length: 255 }).default("pdf,jpg,png"),
+  maxSizeMb: int("maxSizeMb").default(10),
+  example: text("example"),           // URL or description of example document
+  sortOrder: int("sortOrder").default(0).notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  serviceTypeIdx: index("std_serviceType_idx").on(table.serviceTypeId),
+}));
+export type ServiceTypeDocument = typeof serviceTypeDocuments.$inferSelect;
+export type InsertServiceTypeDocument = typeof serviceTypeDocuments.$inferInsert;

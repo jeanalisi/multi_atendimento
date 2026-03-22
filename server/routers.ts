@@ -59,6 +59,9 @@ import {
   institutionalConfigRouter,
   globalSearchRouter,
   userRegistrationRouter,
+  serviceTypeFieldsRouter,
+  serviceTypeDocumentsRouter,
+  cidadaoRouter,
 } from "./routers-advanced";
 
 // ─── Admin guard ──────────────────────────────────────────────────────────────
@@ -416,8 +419,10 @@ export const appRouter = router({
   onlineSessions: onlineSessionsRouter,
   institutionalConfig: institutionalConfigRouter,
   globalSearch: globalSearchRouter,
-  userRegistration: userRegistrationRouter,
-
+   userRegistration: userRegistrationRouter,
+  serviceTypeFields: serviceTypeFieldsRouter,
+  serviceTypeDocuments: serviceTypeDocumentsRouter,
+  cidadao: cidadaoRouter,
   // ── Org Structure ──────────────────────────────────────────────────────────
   orgUnits: orgUnitsRouter,
   positions: positionsRouter,
